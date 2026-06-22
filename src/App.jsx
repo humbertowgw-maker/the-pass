@@ -2,8 +2,8 @@ import { useState } from 'react'
 
 const STATIONS = [
   { key: 'head', station: 'Station 1', name: 'Head Chef', provider: 'GROQ · LLAMA-3.3-70B' },
-  { key: 'sous', station: 'Station 2', name: 'Sous Chef', provider: 'OPENAI · GPT' },
-  { key: 'critic', station: 'The Pass', name: 'The Critic', provider: 'CLAUDE' },
+  { key: 'sous', station: 'Station 2', name: 'Sous Chef', provider: 'GROQ · LLAMA-3.1-8B' },
+  { key: 'critic', station: 'The Pass', name: 'The Critic', provider: 'GROQ · LLAMA-3.3-70B' },
 ]
 
 export default function App() {
