@@ -1,0 +1,6 @@
+{
+  "name": "the-pass-api",
+  "version": "1.0.0",
+  "description": "Sequential AI kitchen brigade function",
+  "main": "brigade/index.js"
+}
