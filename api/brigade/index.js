@@ -2,6 +2,8 @@
 // Head Chef (Groq) -> Sous Chef (OpenAI) -> Critic (Claude).
 // API keys live server-side in Azure Static Web App settings.
 
+const { jsonrepair } = require('jsonrepair')
+
 const GROQ_KEY = process.env.GROQ_API_KEY
 const OPENAI_KEY = process.env.OPENAI_API_KEY
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
@@ -83,14 +85,28 @@ function recipeId(title, index) {
   return `${Date.now()}-${index + 1}-${slug}`
 }
 
-function extractJson(text) {
-  if (!text) throw new Error('empty response')
+function extractJson(text, station) {
+  if (!text) throw new Error(`${station} returned an empty response`)
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/)
   const candidate = fenced ? fenced[1] : text
   const start = candidate.indexOf('{')
   const end = candidate.lastIndexOf('}')
-  if (start === -1 || end === -1) throw new Error('no JSON found')
-  return JSON.parse(candidate.slice(start, end + 1))
+  if (start === -1 || end === -1 || end < start) {
+    throw new Error(`${station} returned no JSON`)
+  }
+
+  const json = candidate.slice(start, end + 1)
+  try {
+    return JSON.parse(json)
+  } catch {
+    try {
+      return JSON.parse(jsonrepair(json))
+    } catch (repairError) {
+      throw new Error(`${station} returned invalid JSON`, {
+        cause: repairError,
+      })
+    }
+  }
 }
 
 async function groq(system, user) {
@@ -188,7 +204,7 @@ Quantity is a hard constraint. Never claim more servings than the listed food ca
   const result = extractJson(await groq(
     sys,
     `On hand: ${ingredients}\n\nPreferences: ${JSON.stringify(preferences)}\n\nBanned prior concepts:\n${previousRecipes.length ? JSON.stringify(previousRecipes) : 'none'}`,
-  ))
+  ), 'Head Chef')
   if (!Array.isArray(result.recipes) || result.recipes.length < 4) {
     throw new Error('Head Chef did not return four complete dishes')
   }
@@ -201,7 +217,7 @@ async function sousChef(ingredients, dishes, preferences) {
   const result = extractJson(await openai(
     sys,
     `On hand: ${ingredients}\n\nRequested preferences: ${JSON.stringify(preferences)}\n\nThe four dishes:\n${JSON.stringify(dishes)}`,
-  ))
+  ), 'Sous Chef')
   return Array.isArray(result.reviews) ? result.reviews.slice(0, 4) : []
 }
 
@@ -211,6 +227,6 @@ async function theCritic(ingredients, dishes, refinements, preferences) {
   const result = extractJson(await claude(
     sys,
     `On hand: ${ingredients}\n\nRequested preferences: ${JSON.stringify(preferences)}\n\nThe four dishes:\n${JSON.stringify(dishes)}\n\nSous chef's corrections:\n${JSON.stringify(refinements)}`,
-  ))
+  ), 'The Critic')
   return Array.isArray(result.reviews) ? result.reviews.slice(0, 4) : []
 }
