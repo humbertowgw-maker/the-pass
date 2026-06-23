@@ -6,6 +6,13 @@ const STATIONS = [
   { key: 'critic', station: 'The Pass', name: 'Claude', provider: 'ANTHROPIC · SONNET 4.6' },
 ]
 
+const DEFAULT_PREFERENCES = {
+  cuisine: 'Surprise me',
+  mood: 'Anything',
+  meal: 'Any meal',
+  servings: 'Auto from ingredients',
+}
+
 const readStorage = (storage, key, fallback = []) => {
   try {
     return JSON.parse(storage.getItem(key)) || fallback
@@ -24,6 +31,7 @@ export default function App() {
   const [sessionRecipes, setSessionRecipes] = useState(() => readStorage(sessionStorage, 'pass_session_recipes'))
   const [saved, setSaved] = useState(() => readStorage(localStorage, 'pass_saved_recipes'))
   const [reviews, setReviews] = useState(() => readStorage(localStorage, 'pass_plate_reviews'))
+  const [preferences, setPreferences] = useState(() => readStorage(localStorage, 'pass_preferences', DEFAULT_PREFERENCES))
 
   const selectedRecipe = recipes[selected]
   const savedIds = useMemo(() => new Set(saved.map((recipe) => recipe.id)), [saved])
@@ -40,7 +48,7 @@ export default function App() {
       const res = await fetch('/api/brigade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ingredients, previousRecipes: sessionRecipes }),
+        body: JSON.stringify({ ingredients, previousRecipes: sessionRecipes, preferences }),
       })
       if (!res.ok) {
         const text = await res.text()
@@ -84,6 +92,12 @@ export default function App() {
     localStorage.setItem('pass_plate_reviews', JSON.stringify(next))
   }
 
+  function updatePreference(key, value) {
+    const next = { ...preferences, [key]: value }
+    setPreferences(next)
+    localStorage.setItem('pass_preferences', JSON.stringify(next))
+  }
+
   return (
     <div className="wrap">
       <header className="masthead">
@@ -106,6 +120,7 @@ export default function App() {
           placeholder="eggs, day-old bread, parmesan, garlic, half an onion, butter, chili flakes..."
           disabled={running}
         />
+        <PreferenceBar preferences={preferences} onChange={updatePreference} disabled={running} />
         <div className="controls">
           <button className="btn" onClick={cook} disabled={running || !ingredients.trim()}>
             {running ? 'Firing four plates…' : recipes.length ? 'Generate four new recipes' : 'Fire the Pass'}
@@ -163,6 +178,28 @@ export default function App() {
   )
 }
 
+function PreferenceBar({ preferences, onChange, disabled }) {
+  const fields = [
+    ['cuisine', 'Cuisine', ['Surprise me', 'American', 'Italian', 'Mexican', 'Mediterranean', 'Asian-inspired', 'Indian-inspired', 'Southern', 'Caribbean', 'French-inspired']],
+    ['mood', 'In the mood for', ['Anything', 'Comfort food', 'Light & fresh', 'Quick & easy', 'Adventurous', 'Indulgent', 'Healthy-ish']],
+    ['meal', 'Meal', ['Any meal', 'Breakfast', 'Lunch', 'Dinner', 'Snack', 'Dessert']],
+    ['servings', 'Feed', ['Auto from ingredients', '1 person', '2 people', '4 people', '6 people']],
+  ]
+
+  return (
+    <div className="preference-grid">
+      {fields.map(([key, label, options]) => (
+        <label key={key}>
+          <span>{label}</span>
+          <select value={preferences[key]} onChange={(event) => onChange(key, event.target.value)} disabled={disabled}>
+            {options.map((option) => <option key={option}>{option}</option>)}
+          </select>
+        </label>
+      ))}
+    </div>
+  )
+}
+
 function KitchenRail({ active = null, recipe = null }) {
   return (
     <div className="rail">
@@ -193,6 +230,12 @@ function Dish({ d }) {
     <div>
       <div className="recipe-title">{d.title}</div>
       <div className="recipe-desc">{d.description}</div>
+      <div className="recipe-meta">
+        <span>{d.cuisine || 'Chef’s choice'}</span>
+        <span>{d.mood || 'Any mood'}</span>
+        <span>Serves {d.servings || '?'}</span>
+      </div>
+      {d.serving_note && <div className="serving-note">{d.serving_note}</div>}
       <div className="sec-label">Mise en Place</div>
       <ul className="ing-list">{(d.ingredients || []).map((item, key) => <li key={key}>{item}</li>)}</ul>
       <div className="sec-label">Method</div>

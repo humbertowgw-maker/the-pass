@@ -14,6 +14,12 @@ const MODELS = {
 
 module.exports = async function (context, req) {
   const ingredients = (req.body && req.body.ingredients || '').toString().slice(0, 1000).trim()
+  const preferences = {
+    cuisine: cleanPreference(req.body?.preferences?.cuisine, 'surprise me'),
+    mood: cleanPreference(req.body?.preferences?.mood, 'anything'),
+    meal: cleanPreference(req.body?.preferences?.meal, 'any meal'),
+    servings: cleanPreference(req.body?.preferences?.servings, 'auto'),
+  }
   const previousTitles = Array.isArray(req.body?.previousTitles)
     ? req.body.previousTitles.map((title) => String(title).slice(0, 120)).slice(-30)
     : []
@@ -30,9 +36,9 @@ module.exports = async function (context, req) {
   }
 
   try {
-    const dishes = await headChef(ingredients, previousRecipes)
-    const refinements = await sousChef(ingredients, dishes)
-    const verdicts = await theCritic(ingredients, dishes, refinements)
+    const dishes = await headChef(ingredients, previousRecipes, preferences)
+    const refinements = await sousChef(ingredients, dishes, preferences)
+    const verdicts = await theCritic(ingredients, dishes, refinements, preferences)
     const recipes = dishes.map((head, index) => ({
       id: recipeId(head.title, index),
       head,
@@ -54,6 +60,11 @@ module.exports = async function (context, req) {
     context.log.error('Brigade failure:', err)
     context.res = { status: 502, body: `A station went down: ${err.message}` }
   }
+}
+
+function cleanPreference(value, fallback) {
+  const cleaned = String(value || '').trim().slice(0, 60)
+  return cleaned || fallback
 }
 
 function recipeId(title, index) {
@@ -145,14 +156,16 @@ async function providerError(provider, response) {
   return new Error(`${provider} returned ${response.status}${detail ? `: ${detail}` : ''}`)
 }
 
-async function headChef(ingredients, previousRecipes) {
+async function headChef(ingredients, previousRecipes, preferences) {
   const sys = `You are the Head Chef at a Michelin-starred kitchen — bold, decisive, inventive. A ticket lists only what's on hand. Invent EXACTLY FOUR genuinely different, achievable dishes. Within this round, each dish must use a different physical format and primary technique: for example a handheld, composed plate, skillet dish, soup, bake, crisp, salad, or sauce-based dish. Four small variations of eggs, potato cakes, wraps, or any other single idea are not acceptable. Basic pantry staples — salt, pepper, oil, and water — are assumed available.
 
 The prior-session list is a BANNED CONCEPT list, not merely banned titles. If it contains a potato cake, do not make another cake, patty, rösti, hash brown, fritter, or renamed version of that concept. Apply the same semantic rule to every prior dish. Choose four concepts whose core cooking method and eating experience are absent from the banned list. Respond ONLY with JSON, no prose:
-{"recipes": [{"title": "dish name", "description": "one vivid sentence", "ingredients": ["qty + item", ...], "steps": ["clear step with timing", ...]}]}`
+{"recipes": [{"title": "dish name", "description": "one vivid sentence", "cuisine": "best-fit cuisine", "mood": "comforting|light|quick|adventurous|indulgent|healthy", "servings": 2, "serving_note": "honest quantity note", "ingredients": ["qty + item", ...], "steps": ["clear step with timing", ...]}]}
+
+Quantity is a hard constraint. Never claim more servings than the listed food can realistically produce. If servings is "auto", infer a conservative whole-number yield from the quantities given. If the requested serving count is impossible, scale down to the honest yield and say so in serving_note. One ordinary box of pasta is generally 4 main-dish servings, not a feast. Honor cuisine, mood, and meal preferences when the ingredients make them plausible; otherwise choose the closest honest fit without inventing specialty ingredients.`
   const result = extractJson(await groq(
     sys,
-    `On hand: ${ingredients}\n\nBanned prior concepts:\n${previousRecipes.length ? JSON.stringify(previousRecipes) : 'none'}`,
+    `On hand: ${ingredients}\n\nPreferences: ${JSON.stringify(preferences)}\n\nBanned prior concepts:\n${previousRecipes.length ? JSON.stringify(previousRecipes) : 'none'}`,
   ))
   if (!Array.isArray(result.recipes) || result.recipes.length < 4) {
     throw new Error('Head Chef did not return four complete dishes')
@@ -160,22 +173,22 @@ The prior-session list is a BANNED CONCEPT list, not merely banned titles. If it
   return result.recipes.slice(0, 4)
 }
 
-async function sousChef(ingredients, dishes) {
+async function sousChef(ingredients, dishes, preferences) {
   const sys = `You are the Sous Chef — precise, technical, and practical. Review all four proposed dishes. For each one, give 2-4 concise corrections covering technique, seasoning, timing, quantities, food safety, or a smart swap. Never introduce an ingredient that is not on hand except salt, pepper, oil, or water. Preserve the exact recipe order. Respond ONLY with JSON:
 {"reviews": [{"title": "matching dish title", "notes": ["correction", ...]}]}`
   const result = extractJson(await openai(
     sys,
-    `On hand: ${ingredients}\n\nThe four dishes:\n${JSON.stringify(dishes)}`,
+    `On hand: ${ingredients}\n\nRequested preferences: ${JSON.stringify(preferences)}\n\nThe four dishes:\n${JSON.stringify(dishes)}`,
   ))
   return Array.isArray(result.reviews) ? result.reviews.slice(0, 4) : []
 }
 
-async function theCritic(ingredients, dishes, refinements) {
-  const sys = `You are Claude acting as the executive chef at the pass. Audit all four recipes and their sous-chef corrections for ingredient fidelity, cookability, clear timing, and food safety. Be honest but useful. Approve a dish only if a home cook can make it from what is on hand. Give each dish its own rating and preserve the exact recipe order. Respond ONLY with JSON:
+async function theCritic(ingredients, dishes, refinements, preferences) {
+  const sys = `You are Claude acting as the executive chef at the pass. Audit all four recipes and their sous-chef corrections for ingredient fidelity, cookability, honest serving yield, preference fit, clear timing, and food safety. Be honest but useful. Approve a dish only if a home cook can make it from what is on hand. Hold any dish that exaggerates its servings or invents unavailable ingredients. Give each dish its own rating and preserve the exact recipe order. Respond ONLY with JSON:
 {"reviews": [{"title": "matching dish title", "rating": 4, "approved": true, "verdict": "one or two vivid but practical sentences", "final_touches": ["last correction or serving note", ...]}]}`
   const result = extractJson(await claude(
     sys,
-    `On hand: ${ingredients}\n\nThe four dishes:\n${JSON.stringify(dishes)}\n\nSous chef's corrections:\n${JSON.stringify(refinements)}`,
+    `On hand: ${ingredients}\n\nRequested preferences: ${JSON.stringify(preferences)}\n\nThe four dishes:\n${JSON.stringify(dishes)}\n\nSous chef's corrections:\n${JSON.stringify(refinements)}`,
   ))
   return Array.isArray(result.reviews) ? result.reviews.slice(0, 4) : []
 }

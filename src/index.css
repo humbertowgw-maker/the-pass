@@ -57,6 +57,19 @@ textarea {
 textarea:focus { outline: none; border-color: var(--ember); }
 textarea::placeholder { color: #6b6353; }
 
+.preference-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 14px;
+}
+.preference-grid label {
+  display: flex; flex-direction: column; gap: 7px; color: var(--sage);
+  font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .12em; text-transform: uppercase;
+}
+.preference-grid select {
+  width: 100%; min-height: 42px; padding: 0 9px; border: 1px solid var(--line);
+  border-radius: 3px; background: var(--char); color: var(--bone); font-family: 'Inter', sans-serif;
+}
+.preference-grid select:focus { outline: none; border-color: var(--brass); }
+
 .controls { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
 .btn {
   font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 16px;
@@ -99,6 +112,12 @@ textarea::placeholder { color: #6b6353; }
 
 .recipe-title { font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 26px; text-transform: uppercase; color: var(--bone); margin-bottom: 6px; }
 .recipe-desc { color: #b8ad99; font-style: italic; margin-bottom: 20px; line-height: 1.5; }
+.recipe-meta { display: flex; gap: 8px; flex-wrap: wrap; margin: -7px 0 15px; }
+.recipe-meta span {
+  padding: 5px 7px; border: 1px solid var(--line); color: var(--sage);
+  font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .08em; text-transform: uppercase;
+}
+.serving-note { margin-bottom: 18px; padding: 10px 12px; border-left: 2px solid var(--ember); color: #a99e8c; font-size: 12px; line-height: 1.5; }
 .sec-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--brass); margin: 20px 0 10px; }
 .ing-list, .step-list { line-height: 1.8; color: #ddd3c0; }
 .ing-list li, .step-list li { margin-bottom: 6px; }
@@ -199,12 +218,14 @@ h3 { font-size: 24px; }
 
 @media (max-width: 820px) {
   .choice-grid { grid-template-columns: repeat(2, 1fr); }
+  .preference-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 560px) {
   .masthead { padding-top: 38px; }
   .ticket, .selected-plate { padding: 18px; }
   .choice-grid, .feed-grid { grid-template-columns: 1fr; }
+  .preference-grid { grid-template-columns: 1fr; }
   .choice-card { min-height: 190px; }
   .provider-tag { display: none; }
   .docket-head { gap: 8px; padding: 14px; }

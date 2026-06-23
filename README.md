@@ -40,6 +40,20 @@ and cookbook publishing require a persistent database and storage service.
 Amazon KDP publishing should remain an approval-gated release step; automated
 proof copies and direct fulfillment can later use a print API such as Lulu.
 
+## Public community setup
+
+The recommended community backend is Supabase:
+
+1. Create a Supabase project.
+2. Run [`supabase/schema.sql`](supabase/schema.sql) in its SQL editor.
+3. Enable email magic-link authentication.
+4. Add the deployed Pass URL as an allowed redirect URL.
+5. Connect the frontend with the project's public URL and publishable key.
+
+Guests should always be able to generate recipes without signing in. Accounts
+are only required for cloud saves, preferences, reviews, photos, and cookbook
+publishing consent.
+
 ## Environment variables (set in Azure SWA → Configuration)
 
 - `GROQ_API_KEY`
