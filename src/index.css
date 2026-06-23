@@ -27,8 +27,22 @@ body {
 .eyebrow {
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px; letter-spacing: 0.28em; text-transform: uppercase;
-  color: var(--brass); margin-bottom: 14px;
+  color: var(--brass);
 }
+.topline { display: flex; justify-content: space-between; gap: 20px; align-items: center; margin-bottom: 14px; }
+.account-controls { display: flex; align-items: center; gap: 10px; color: #766d5e; font-size: 11px; }
+.account-controls a {
+  padding: 7px 10px; border: 1px solid var(--line); border-radius: 3px; color: var(--bone);
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .08em; text-decoration: none; text-transform: uppercase;
+}
+.account-controls a:hover, .account-controls .join-link { border-color: var(--ember); }
+.account-controls .join-link { background: var(--ember); color: var(--char); }
+
+.auth-page {
+  min-height: 100vh; padding: 50px 20px; display: grid; place-items: center;
+  background: radial-gradient(circle at top, #251a12, var(--char) 55%);
+}
+.auth-page > * { width: min(100%, 480px); }
 h1 {
   font-family: 'Oswald', sans-serif; font-weight: 600;
   font-size: clamp(38px, 7vw, 68px); line-height: 0.95;
@@ -223,6 +237,8 @@ h3 { font-size: 24px; }
 
 @media (max-width: 560px) {
   .masthead { padding-top: 38px; }
+  .topline { align-items: flex-start; flex-direction: column; }
+  .account-controls span { display: none; }
   .ticket, .selected-plate { padding: 18px; }
   .choice-grid, .feed-grid { grid-template-columns: 1fr; }
   .preference-grid { grid-template-columns: 1fr; }

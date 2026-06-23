@@ -1,4 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { SignedIn, SignedOut, UserButton } from '@neondatabase/neon-js/auth/react'
+import { neonClient } from './auth.js'
 
 const STATIONS = [
   { key: 'head', station: 'Station 1', name: 'Head Chef', provider: 'GROQ · LLAMA-3.3-70B' },
@@ -31,10 +34,46 @@ export default function App() {
   const [sessionRecipes, setSessionRecipes] = useState(() => readStorage(sessionStorage, 'pass_session_recipes'))
   const [saved, setSaved] = useState(() => readStorage(localStorage, 'pass_saved_recipes'))
   const [reviews, setReviews] = useState(() => readStorage(localStorage, 'pass_plate_reviews'))
+  const [cloudReviews, setCloudReviews] = useState([])
   const [preferences, setPreferences] = useState(() => readStorage(localStorage, 'pass_preferences', DEFAULT_PREFERENCES))
+  const session = neonClient.auth.useSession()
+  const user = session.data?.user
 
   const selectedRecipe = recipes[selected]
   const savedIds = useMemo(() => new Set(saved.map((recipe) => recipe.id)), [saved])
+  const visibleReviews = useMemo(() => {
+    const byId = new Map()
+    ;[...reviews, ...cloudReviews].forEach((review) => byId.set(review.id, review))
+    return [...byId.values()]
+  }, [reviews, cloudReviews])
+
+  useEffect(() => {
+    let active = true
+    async function loadCommunityReviews() {
+      try {
+        const { data, error: loadError } = await neonClient
+          .from('reviews')
+          .select('id, title, quote, rating, photo_url, recipe_snapshot, created_at')
+          .order('created_at', { ascending: false })
+          .limit(40)
+        if (loadError) throw loadError
+        if (!active) return
+        setCloudReviews((data || []).map((review) => ({
+          id: review.id,
+          title: review.title,
+          quote: review.quote,
+          rating: review.rating,
+          photo: review.photo_url,
+          recipe: review.recipe_snapshot,
+          createdAt: review.created_at,
+        })))
+      } catch {
+        // The local tasting room still works if the community API is waking up.
+      }
+    }
+    loadCommunityReviews()
+    return () => { active = false }
+  }, [])
 
   async function cook() {
     if (!ingredients.trim() || running) return
@@ -78,18 +117,51 @@ export default function App() {
     }
   }
 
-  function toggleSave(recipe) {
+  async function toggleSave(recipe) {
     const next = savedIds.has(recipe.id)
       ? saved.filter((item) => item.id !== recipe.id)
       : [{ ...recipe, savedAt: new Date().toISOString() }, ...saved].slice(0, 50)
     setSaved(next)
     localStorage.setItem('pass_saved_recipes', JSON.stringify(next))
+    if (!user || savedIds.has(recipe.id)) return
+    try {
+      const row = recipeRow(recipe)
+      const { data, error: recipeError } = await neonClient.from('recipes').insert(row).select('id')
+      if (recipeError) throw recipeError
+      const cloudRecipeId = data?.[0]?.id
+      if (cloudRecipeId) {
+        const { error: saveError } = await neonClient.from('saved_recipes').insert({ recipe_id: cloudRecipeId })
+        if (saveError) throw saveError
+      }
+    } catch {
+      // Keep the local save; cloud sync can retry in a later session.
+    }
   }
 
-  function addReview(review) {
+  async function addReview(review) {
     const next = [{ ...review, id: `${Date.now()}`, createdAt: new Date().toISOString() }, ...reviews].slice(0, 40)
     setReviews(next)
     localStorage.setItem('pass_plate_reviews', JSON.stringify(next))
+    if (!user) return
+    try {
+      const { data, error: recipeError } = await neonClient
+        .from('recipes')
+        .insert({ ...recipeRow(review.recipe), public: true })
+        .select('id')
+      if (recipeError) throw recipeError
+      const cloudRecipeId = data?.[0]?.id
+      if (!cloudRecipeId) return
+      const { error: reviewError } = await neonClient.from('reviews').insert({
+        recipe_id: cloudRecipeId,
+        title: review.title,
+        quote: review.quote,
+        rating: review.rating,
+        recipe_snapshot: review.recipe,
+      })
+      if (reviewError) throw reviewError
+    } catch {
+      // Preserve the user's local review if cloud moderation submission fails.
+    }
   }
 
   function updatePreference(key, value) {
@@ -101,7 +173,20 @@ export default function App() {
   return (
     <div className="wrap">
       <header className="masthead">
-        <div className="eyebrow">Multi-Model Kitchen Brigade</div>
+        <div className="topline">
+          <div className="eyebrow">Multi-Model Kitchen Brigade</div>
+          <div className="account-controls">
+            <SignedOut>
+              <span>Cook free. Save with an account.</span>
+              <Link to="/auth/sign-in">Sign in</Link>
+              <Link className="join-link" to="/auth/sign-up">Join free</Link>
+            </SignedOut>
+            <SignedIn>
+              <span>Your kitchen is saved.</span>
+              <UserButton />
+            </SignedIn>
+          </div>
+        </div>
         <h1>The <span className="fire">Pass</span></h1>
         <p className="sub">
           Put what you have on the ticket. The brigade creates four completely different dishes,
@@ -171,11 +256,29 @@ export default function App() {
 
       {error && <div className="err">{error}</div>}
 
-      <TastingRoom reviews={reviews} saved={saved} />
+      <TastingRoom reviews={visibleReviews} saved={saved} />
 
       <footer>The Pass · Four plates per ticket · White Glove</footer>
     </div>
   )
+}
+
+function recipeRow(recipe) {
+  return {
+    title: recipe.head.title,
+    description: recipe.head.description,
+    cuisine: recipe.head.cuisine,
+    mood: recipe.head.mood,
+    servings: recipe.head.servings,
+    serving_note: recipe.head.serving_note,
+    ingredients: recipe.head.ingredients || [],
+    steps: recipe.head.steps || [],
+    sous_notes: recipe.sous?.notes || [],
+    critic_rating: recipe.critic?.rating,
+    critic_approved: recipe.critic?.approved || false,
+    critic_verdict: recipe.critic?.verdict,
+    final_touches: recipe.critic?.final_touches || [],
+  }
 }
 
 function PreferenceBar({ preferences, onChange, disabled }) {

@@ -42,13 +42,14 @@ proof copies and direct fulfillment can later use a print API such as Lulu.
 
 ## Public community setup
 
-The recommended community backend is Supabase:
+The community backend is Neon:
 
-1. Create a Supabase project.
-2. Run [`supabase/schema.sql`](supabase/schema.sql) in its SQL editor.
-3. Enable email magic-link authentication.
-4. Add the deployed Pass URL as an allowed redirect URL.
-5. Connect the frontend with the project's public URL and publishable key.
+1. Enable Neon Auth and trust the deployed Pass domain.
+2. Run [`neon/schema.sql`](neon/schema.sql) in the production branch SQL editor.
+3. Set `VITE_NEON_AUTH_URL` at build time (the app also has the project's public
+   Auth URL as a deployment-safe fallback).
+4. Enable the Neon Data API before replacing device-local saves and reviews
+   with shared cloud records.
 
 Guests should always be able to generate recipes without signing in. Accounts
 are only required for cloud saves, preferences, reviews, photos, and cookbook
