@@ -17,6 +17,12 @@ module.exports = async function (context, req) {
   const previousTitles = Array.isArray(req.body?.previousTitles)
     ? req.body.previousTitles.map((title) => String(title).slice(0, 120)).slice(-30)
     : []
+  const previousRecipes = Array.isArray(req.body?.previousRecipes)
+    ? req.body.previousRecipes.slice(-30).map((recipe) => ({
+        title: String(recipe?.title || '').slice(0, 120),
+        description: String(recipe?.description || '').slice(0, 240),
+      }))
+    : previousTitles.map((title) => ({ title, description: '' }))
 
   if (!ingredients) {
     context.res = { status: 400, body: 'No ingredients on the ticket.' }
@@ -24,7 +30,7 @@ module.exports = async function (context, req) {
   }
 
   try {
-    const dishes = await headChef(ingredients, previousTitles)
+    const dishes = await headChef(ingredients, previousRecipes)
     const refinements = await sousChef(ingredients, dishes)
     const verdicts = await theCritic(ingredients, dishes, refinements)
     const recipes = dishes.map((head, index) => ({
@@ -139,12 +145,14 @@ async function providerError(provider, response) {
   return new Error(`${provider} returned ${response.status}${detail ? `: ${detail}` : ''}`)
 }
 
-async function headChef(ingredients, previousTitles) {
-  const sys = `You are the Head Chef at a Michelin-starred kitchen — bold, decisive, inventive. A ticket lists only what's on hand. Invent EXACTLY FOUR genuinely different, achievable dishes. They must differ in format, technique, texture, and flavor direction; four small variations of one idea are not acceptable. Basic pantry staples — salt, pepper, oil, and water — are assumed available. Do not repeat any prior dish title or close variation. Respond ONLY with JSON, no prose:
+async function headChef(ingredients, previousRecipes) {
+  const sys = `You are the Head Chef at a Michelin-starred kitchen — bold, decisive, inventive. A ticket lists only what's on hand. Invent EXACTLY FOUR genuinely different, achievable dishes. Within this round, each dish must use a different physical format and primary technique: for example a handheld, composed plate, skillet dish, soup, bake, crisp, salad, or sauce-based dish. Four small variations of eggs, potato cakes, wraps, or any other single idea are not acceptable. Basic pantry staples — salt, pepper, oil, and water — are assumed available.
+
+The prior-session list is a BANNED CONCEPT list, not merely banned titles. If it contains a potato cake, do not make another cake, patty, rösti, hash brown, fritter, or renamed version of that concept. Apply the same semantic rule to every prior dish. Choose four concepts whose core cooking method and eating experience are absent from the banned list. Respond ONLY with JSON, no prose:
 {"recipes": [{"title": "dish name", "description": "one vivid sentence", "ingredients": ["qty + item", ...], "steps": ["clear step with timing", ...]}]}`
   const result = extractJson(await groq(
     sys,
-    `On hand: ${ingredients}\n\nAlready served this session: ${previousTitles.length ? previousTitles.join(' | ') : 'none'}`,
+    `On hand: ${ingredients}\n\nBanned prior concepts:\n${previousRecipes.length ? JSON.stringify(previousRecipes) : 'none'}`,
   ))
   if (!Array.isArray(result.recipes) || result.recipes.length < 4) {
     throw new Error('Head Chef did not return four complete dishes')

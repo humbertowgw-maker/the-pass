@@ -27,8 +27,9 @@ panel behaves like a real kitchen brigade rather than three isolated calls.
 ## Product behavior
 
 - Four distinct dishes are returned for every ingredient ticket.
-- Recipe titles are remembered in `sessionStorage`, so another round avoids
-  repeating dishes during that browser session.
+- Recipe titles and descriptions are remembered in `sessionStorage`, so
+  another round avoids both exact repeats and close variations during that
+  browser session.
 - Saved recipes and tasting-room reviews are stored on the current device.
 - Reviews can include a plate photo, rating, quote, and the full recipe needed
   to recreate the dish.

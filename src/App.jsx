@@ -21,7 +21,7 @@ export default function App() {
   const [recipes, setRecipes] = useState([])
   const [selected, setSelected] = useState(0)
   const [error, setError] = useState(null)
-  const [sessionTitles, setSessionTitles] = useState(() => readStorage(sessionStorage, 'pass_session_titles'))
+  const [sessionRecipes, setSessionRecipes] = useState(() => readStorage(sessionStorage, 'pass_session_recipes'))
   const [saved, setSaved] = useState(() => readStorage(localStorage, 'pass_saved_recipes'))
   const [reviews, setReviews] = useState(() => readStorage(localStorage, 'pass_plate_reviews'))
 
@@ -40,7 +40,7 @@ export default function App() {
       const res = await fetch('/api/brigade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ingredients, previousTitles: sessionTitles }),
+        body: JSON.stringify({ ingredients, previousRecipes: sessionRecipes }),
       })
       if (!res.ok) {
         const text = await res.text()
@@ -53,9 +53,15 @@ export default function App() {
       await wait(450)
       setActive(null)
       setRecipes(data.recipes || [])
-      const newTitles = [...sessionTitles, ...(data.recipes || []).map((recipe) => recipe.head.title)].slice(-30)
-      setSessionTitles(newTitles)
-      sessionStorage.setItem('pass_session_titles', JSON.stringify(newTitles))
+      const newMemory = [
+        ...sessionRecipes,
+        ...(data.recipes || []).map((recipe) => ({
+          title: recipe.head.title,
+          description: recipe.head.description,
+        })),
+      ].slice(-30)
+      setSessionRecipes(newMemory)
+      sessionStorage.setItem('pass_session_recipes', JSON.stringify(newMemory))
     } catch (e) {
       setActive(null)
       setError(e.message || 'The kitchen went dark. Try again.')
@@ -92,7 +98,7 @@ export default function App() {
       <div className="ticket">
         <div className="ticket-label">
           <span>Order Ticket — On Hand</span>
-          <span>{sessionTitles.length} ideas remembered</span>
+          <span>{sessionRecipes.length} ideas remembered</span>
         </div>
         <textarea
           value={ingredients}
