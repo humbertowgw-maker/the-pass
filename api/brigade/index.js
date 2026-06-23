@@ -1,5 +1,4 @@
-// Azure Function: the sequential kitchen brigade.
-// Head Chef (Groq) -> Sous Chef (OpenAI) -> Critic (Claude).
+// Azure Function: Head Chef creates the plates, then Sous Chef and Critic review in parallel.
 // API keys live server-side in Azure Static Web App settings.
 
 const GROQ_KEY = process.env.GROQ_API_KEY
@@ -12,7 +11,7 @@ const MODELS = {
   critic: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
 }
 
-const PROVIDER_TIMEOUT_MS = Number(process.env.PROVIDER_TIMEOUT_MS || 45000)
+const PROVIDER_TIMEOUT_MS = Number(process.env.PROVIDER_TIMEOUT_MS || 20000)
 
 module.exports = async function (context, req) {
   if (req.method && req.method.toUpperCase() !== 'POST') {
@@ -44,8 +43,10 @@ module.exports = async function (context, req) {
 
   try {
     const dishes = await headChef(ingredients, previousRecipes, preferences)
-    const refinements = await sousChef(ingredients, dishes, preferences)
-    const verdicts = await theCritic(ingredients, dishes, refinements, preferences)
+    const [refinements, verdicts] = await Promise.all([
+      sousChef(ingredients, dishes, preferences),
+      theCritic(ingredients, dishes, preferences),
+    ])
     const recipes = dishes.map((head, index) => ({
       id: recipeId(head.title, index),
       head,
@@ -263,12 +264,12 @@ async function sousChef(ingredients, dishes, preferences) {
   return Array.isArray(result.reviews) ? result.reviews.slice(0, 4) : []
 }
 
-async function theCritic(ingredients, dishes, refinements, preferences) {
-  const sys = `You are Claude acting as the executive chef at the pass. Audit all four recipes and their sous-chef corrections for ingredient fidelity, cookability, honest serving yield, preference fit, clear timing, and food safety. Be honest but useful. Approve a dish only if a home cook can make it from what is on hand. Hold any dish that exaggerates its servings or invents unavailable ingredients. Give each dish its own rating and preserve the exact recipe order. Respond ONLY with JSON:
+async function theCritic(ingredients, dishes, preferences) {
+  const sys = `You are Claude acting as the executive chef at the pass. Independently audit all four proposed recipes for ingredient fidelity, cookability, honest serving yield, preference fit, clear timing, and food safety. Be honest but useful. Approve a dish only if a home cook can make it from what is on hand. Hold any dish that exaggerates its servings or invents unavailable ingredients. Give each dish its own rating and preserve the exact recipe order. Respond ONLY with JSON:
 {"reviews": [{"title": "matching dish title", "rating": 4, "approved": true, "verdict": "one or two vivid but practical sentences", "final_touches": ["last correction or serving note", ...]}]}`
   const result = extractJson(await claude(
     sys,
-    `On hand: ${ingredients}\n\nRequested preferences: ${JSON.stringify(preferences)}\n\nThe four dishes:\n${JSON.stringify(dishes)}\n\nSous chef's corrections:\n${JSON.stringify(refinements)}`,
+    `On hand: ${ingredients}\n\nRequested preferences: ${JSON.stringify(preferences)}\n\nThe four dishes:\n${JSON.stringify(dishes)}`,
   ), 'The Critic')
   return Array.isArray(result.reviews) ? result.reviews.slice(0, 4) : []
 }
