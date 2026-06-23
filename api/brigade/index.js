@@ -2,8 +2,6 @@
 // Head Chef (Groq) -> Sous Chef (OpenAI) -> Critic (Claude).
 // API keys live server-side in Azure Static Web App settings.
 
-const { jsonrepair } = require('jsonrepair')
-
 const GROQ_KEY = process.env.GROQ_API_KEY
 const OPENAI_KEY = process.env.OPENAI_API_KEY
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY
@@ -100,13 +98,57 @@ function extractJson(text, station) {
     return JSON.parse(json)
   } catch {
     try {
-      return JSON.parse(jsonrepair(json))
+      return JSON.parse(repairModelJson(json))
     } catch (repairError) {
       throw new Error(`${station} returned invalid JSON`, {
         cause: repairError,
       })
     }
   }
+}
+
+function repairModelJson(json) {
+  const withoutTrailingCommas = json.replace(/,\s*([}\]])/g, '$1')
+  const repaired = []
+  const stack = []
+  let inString = false
+  let escaped = false
+
+  for (const char of withoutTrailingCommas) {
+    if (inString) {
+      repaired.push(char)
+      if (escaped) escaped = false
+      else if (char === '\\') escaped = true
+      else if (char === '"') inString = false
+      continue
+    }
+
+    if (char === '"') {
+      inString = true
+      repaired.push(char)
+      continue
+    }
+
+    if (char === '{' || char === '[') {
+      stack.push(char)
+      repaired.push(char)
+      continue
+    }
+
+    if (char === '}' || char === ']') {
+      const opener = char === '}' ? '{' : '['
+      if (!stack.includes(opener)) continue
+      while (stack.at(-1) !== opener) {
+        repaired.push(stack.pop() === '{' ? '}' : ']')
+      }
+      stack.pop()
+    }
+
+    repaired.push(char)
+  }
+
+  while (stack.length) repaired.push(stack.pop() === '{' ? '}' : ']')
+  return repaired.join('')
 }
 
 async function groq(system, user) {
