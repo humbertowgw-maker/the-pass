@@ -2,8 +2,8 @@ import { useState } from 'react'
 
 const STATIONS = [
   { key: 'head', station: 'Station 1', name: 'Head Chef', provider: 'GROQ · LLAMA-3.3-70B' },
-  { key: 'sous', station: 'Station 2', name: 'Sous Chef', provider: 'GROQ · LLAMA-3.1-8B' },
-  { key: 'critic', station: 'The Pass', name: 'The Critic', provider: 'GROQ · LLAMA-3.3-70B' },
+  { key: 'sous', station: 'Station 2', name: 'Sous Chef', provider: 'OPENAI · GPT-4O-MINI' },
+  { key: 'critic', station: 'The Pass', name: 'Claude', provider: 'ANTHROPIC · SONNET 4.6' },
 ]
 
 export default function App() {
@@ -134,9 +134,13 @@ function Verdict({ d }) {
   const stars = '★'.repeat(d.rating || 0) + '☆'.repeat(Math.max(0, 5 - (d.rating || 0)))
   return (
     <div className="verdict">
+      <div className={`approval ${d.approved === false ? 'held' : ''}`}>
+        {d.approved === false ? 'Held at the pass' : 'Approved to serve'}
+      </div>
       <div className="stars">{stars}</div>
       <div className="verdict-text">"{d.verdict}"</div>
-      <div className="verdict-sig">— The Critic, at the pass</div>
+      {(d.final_touches || []).map((touch, k) => <div className="final-touch" key={k}>{touch}</div>)}
+      <div className="verdict-sig">— Claude, executive chef at the pass</div>
     </div>
   )
 }

@@ -111,8 +111,12 @@ textarea::placeholder { color: #6b6353; }
 
 /* Critic plate */
 .verdict { background: var(--char); border: 1px solid var(--line); border-radius: 4px; padding: 22px; margin-top: 4px; }
+.approval { display: inline-block; margin-bottom: 14px; padding: 5px 8px; border: 1px solid var(--sage); border-radius: 2px; color: #b8c1b0; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; }
+.approval.held { border-color: var(--ember); color: #f0a68c; }
 .stars { font-size: 20px; color: var(--brass); letter-spacing: 4px; margin-bottom: 12px; }
 .verdict-text { font-family: 'Oswald', sans-serif; font-weight: 300; font-size: 20px; line-height: 1.4; color: var(--bone); font-style: italic; }
+.final-touch { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; color: #c5bba8; font-size: 14px; line-height: 1.5; }
+.final-touch::before { content: 'Final touch — '; color: var(--brass); }
 .verdict-sig { margin-top: 14px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.15em; color: var(--sage); text-transform: uppercase; }
 
 .err { margin-top: 24px; background: #2a1410; border: 1px solid var(--ember); border-radius: 4px; padding: 16px 20px; color: #f0c4b4; font-size: 14px; line-height: 1.5; }
