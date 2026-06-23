@@ -16,6 +16,8 @@ const DEFAULT_PREFERENCES = {
   servings: 'Auto from ingredients',
 }
 
+const COOK_TIMEOUT_MS = 70000
+
 const readStorage = (storage, key, fallback = []) => {
   try {
     return JSON.parse(storage.getItem(key)) || fallback
@@ -82,18 +84,24 @@ export default function App() {
     setRecipes([])
     setSelected(0)
     setActive('head')
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), COOK_TIMEOUT_MS)
 
     try {
       const res = await fetch('/api/brigade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ingredients, previousRecipes: sessionRecipes, preferences }),
+        signal: controller.signal,
       })
       if (!res.ok) {
         const text = await res.text()
         throw new Error(text || `The kitchen returned ${res.status}.`)
       }
       const data = await res.json()
+      if (!Array.isArray(data.recipes) || data.recipes.length === 0) {
+        throw new Error('The kitchen returned an empty ticket. Try again.')
+      }
       setActive('sous')
       await wait(450)
       setActive('critic')
@@ -111,8 +119,11 @@ export default function App() {
       sessionStorage.setItem('pass_session_recipes', JSON.stringify(newMemory))
     } catch (e) {
       setActive(null)
-      setError(e.message || 'The kitchen went dark. Try again.')
+      setError(e.name === 'AbortError'
+        ? 'The kitchen took too long to answer. Try again in a minute.'
+        : e.message || 'The kitchen went dark. Try again.')
     } finally {
+      clearTimeout(timeout)
       setRunning(false)
     }
   }

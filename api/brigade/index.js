@@ -12,7 +12,14 @@ const MODELS = {
   critic: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
 }
 
+const PROVIDER_TIMEOUT_MS = Number(process.env.PROVIDER_TIMEOUT_MS || 45000)
+
 module.exports = async function (context, req) {
+  if (req.method && req.method.toUpperCase() !== 'POST') {
+    context.res = { status: 405, body: 'The kitchen only accepts POST tickets.' }
+    return
+  }
+
   const ingredients = (req.body && req.body.ingredients || '').toString().slice(0, 1000).trim()
   const preferences = {
     cuisine: cleanPreference(req.body?.preferences?.cuisine, 'surprise me'),
@@ -88,7 +95,7 @@ function extractJson(text) {
 
 async function groq(system, user) {
   requireKey(GROQ_KEY, 'GROQ_API_KEY', 'Head Chef')
-  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const r = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_KEY}` },
     body: JSON.stringify({
@@ -96,7 +103,7 @@ async function groq(system, user) {
       temperature: 0.8,
       messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
     }),
-  })
+  }, 'Head Chef (Groq)')
   if (!r.ok) throw await providerError('Head Chef (Groq)', r)
   const d = await r.json()
   return d.choices?.[0]?.message?.content
@@ -104,7 +111,7 @@ async function groq(system, user) {
 
 async function openai(system, user) {
   requireKey(OPENAI_KEY, 'OPENAI_API_KEY', 'Sous Chef')
-  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+  const r = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_KEY}` },
     body: JSON.stringify({
@@ -113,7 +120,7 @@ async function openai(system, user) {
       response_format: { type: 'json_object' },
       messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
     }),
-  })
+  }, 'Sous Chef (OpenAI)')
   if (!r.ok) throw await providerError('Sous Chef (OpenAI)', r)
   const d = await r.json()
   return d.choices?.[0]?.message?.content
@@ -121,7 +128,7 @@ async function openai(system, user) {
 
 async function claude(system, user) {
   requireKey(ANTHROPIC_KEY, 'ANTHROPIC_API_KEY', 'The Critic')
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
+  const r = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -135,7 +142,7 @@ async function claude(system, user) {
       system,
       messages: [{ role: 'user', content: user }],
     }),
-  })
+  }, 'The Critic (Claude)')
   if (!r.ok) throw await providerError('The Critic (Claude)', r)
   const d = await r.json()
   return (d.content || []).filter((block) => block.type === 'text').map((block) => block.text).join('\n')
@@ -143,6 +150,21 @@ async function claude(system, user) {
 
 function requireKey(value, setting, station) {
   if (!value) throw new Error(`${station} is not configured. Add ${setting} to the Azure app settings.`)
+}
+
+async function fetchWithTimeout(url, options, station) {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS)
+  try {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new Error(`${station} timed out. Try again in a minute.`, { cause: err })
+    }
+    throw err
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 async function providerError(provider, response) {
