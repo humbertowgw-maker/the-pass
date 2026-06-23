@@ -14,6 +14,9 @@ const MODELS = {
 
 module.exports = async function (context, req) {
   const ingredients = (req.body && req.body.ingredients || '').toString().slice(0, 1000).trim()
+  const previousTitles = Array.isArray(req.body?.previousTitles)
+    ? req.body.previousTitles.map((title) => String(title).slice(0, 120)).slice(-30)
+    : []
 
   if (!ingredients) {
     context.res = { status: 400, body: 'No ingredients on the ticket.' }
@@ -21,19 +24,39 @@ module.exports = async function (context, req) {
   }
 
   try {
-    const head = await headChef(ingredients)
-    const sous = await sousChef(ingredients, head)
-    const critic = await theCritic(ingredients, head, sous)
+    const dishes = await headChef(ingredients, previousTitles)
+    const refinements = await sousChef(ingredients, dishes)
+    const verdicts = await theCritic(ingredients, dishes, refinements)
+    const recipes = dishes.map((head, index) => ({
+      id: recipeId(head.title, index),
+      head,
+      sous: refinements[index] || { notes: [] },
+      critic: verdicts[index] || {
+        rating: 0,
+        approved: false,
+        verdict: 'This plate still needs review.',
+        final_touches: [],
+      },
+    }))
 
     context.res = {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: { head, sous, critic },
+      body: { recipes },
     }
   } catch (err) {
     context.log.error('Brigade failure:', err)
     context.res = { status: 502, body: `A station went down: ${err.message}` }
   }
+}
+
+function recipeId(title, index) {
+  const slug = String(title || `recipe-${index + 1}`)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 48)
+  return `${Date.now()}-${index + 1}-${slug}`
 }
 
 function extractJson(text) {
@@ -90,7 +113,7 @@ async function claude(system, user) {
     },
     body: JSON.stringify({
       model: MODELS.critic,
-      max_tokens: 700,
+      max_tokens: 2200,
       temperature: 0.4,
       system,
       messages: [{ role: 'user', content: user }],
@@ -116,23 +139,35 @@ async function providerError(provider, response) {
   return new Error(`${provider} returned ${response.status}${detail ? `: ${detail}` : ''}`)
 }
 
-async function headChef(ingredients) {
-  const sys = `You are the Head Chef at a Michelin-starred kitchen — bold, decisive, inventive. A ticket lists only what's on hand. Invent ONE achievable dish (basic pantry staples — salt, pepper, oil, water — assumed available). Respond ONLY with JSON, no prose:
-{"title": "dish name", "description": "one vivid sentence", "ingredients": ["qty + item", ...], "steps": ["step", ...]}`
-  return extractJson(await groq(sys, `On hand: ${ingredients}`))
-}
-
-async function sousChef(ingredients, dish) {
-  const sys = `You are the Sous Chef — precise, technical, and practical. Check that the proposed dish can actually be cooked with the ingredients on hand. Give 2-4 concise corrections covering technique, seasoning, timing, quantities, food safety, or a smart swap. Never introduce an ingredient that is not on hand except salt, pepper, oil, or water. Respond ONLY with JSON:
-{"notes": ["correction", ...]}`
-  return extractJson(await openai(sys, `On hand: ${ingredients}\n\nThe dish:\n${JSON.stringify(dish)}`))
-}
-
-async function theCritic(ingredients, dish, refinement) {
-  const sys = `You are Claude acting as the executive chef at the pass. Audit the proposed recipe and the sous chef's corrections for ingredient fidelity, cookability, clear timing, and food safety. Be honest but useful. Approve the dish only if a home cook can make it from what is on hand. Respond ONLY with JSON:
-{"rating": 4, "approved": true, "verdict": "one or two vivid but practical sentences", "final_touches": ["last correction or serving note", ...]}`
-  return extractJson(await claude(
+async function headChef(ingredients, previousTitles) {
+  const sys = `You are the Head Chef at a Michelin-starred kitchen — bold, decisive, inventive. A ticket lists only what's on hand. Invent EXACTLY FOUR genuinely different, achievable dishes. They must differ in format, technique, texture, and flavor direction; four small variations of one idea are not acceptable. Basic pantry staples — salt, pepper, oil, and water — are assumed available. Do not repeat any prior dish title or close variation. Respond ONLY with JSON, no prose:
+{"recipes": [{"title": "dish name", "description": "one vivid sentence", "ingredients": ["qty + item", ...], "steps": ["clear step with timing", ...]}]}`
+  const result = extractJson(await groq(
     sys,
-    `On hand: ${ingredients}\n\nThe dish:\n${JSON.stringify(dish)}\n\nSous chef's corrections:\n${JSON.stringify(refinement)}`,
+    `On hand: ${ingredients}\n\nAlready served this session: ${previousTitles.length ? previousTitles.join(' | ') : 'none'}`,
   ))
+  if (!Array.isArray(result.recipes) || result.recipes.length < 4) {
+    throw new Error('Head Chef did not return four complete dishes')
+  }
+  return result.recipes.slice(0, 4)
+}
+
+async function sousChef(ingredients, dishes) {
+  const sys = `You are the Sous Chef — precise, technical, and practical. Review all four proposed dishes. For each one, give 2-4 concise corrections covering technique, seasoning, timing, quantities, food safety, or a smart swap. Never introduce an ingredient that is not on hand except salt, pepper, oil, or water. Preserve the exact recipe order. Respond ONLY with JSON:
+{"reviews": [{"title": "matching dish title", "notes": ["correction", ...]}]}`
+  const result = extractJson(await openai(
+    sys,
+    `On hand: ${ingredients}\n\nThe four dishes:\n${JSON.stringify(dishes)}`,
+  ))
+  return Array.isArray(result.reviews) ? result.reviews.slice(0, 4) : []
+}
+
+async function theCritic(ingredients, dishes, refinements) {
+  const sys = `You are Claude acting as the executive chef at the pass. Audit all four recipes and their sous-chef corrections for ingredient fidelity, cookability, clear timing, and food safety. Be honest but useful. Approve a dish only if a home cook can make it from what is on hand. Give each dish its own rating and preserve the exact recipe order. Respond ONLY with JSON:
+{"reviews": [{"title": "matching dish title", "rating": 4, "approved": true, "verdict": "one or two vivid but practical sentences", "final_touches": ["last correction or serving note", ...]}]}`
+  const result = extractJson(await claude(
+    sys,
+    `On hand: ${ingredients}\n\nThe four dishes:\n${JSON.stringify(dishes)}\n\nSous chef's corrections:\n${JSON.stringify(refinements)}`,
+  ))
+  return Array.isArray(result.reviews) ? result.reviews.slice(0, 4) : []
 }

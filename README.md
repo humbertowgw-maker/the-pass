@@ -1,6 +1,7 @@
 # The Pass — AI Kitchen Brigade
 
-Tell the kitchen what's in your fridge. Three AI models work the line in sequence:
+Tell the kitchen what's in your fridge. Every ticket now produces four
+deliberately different recipes, and three AI models work the line in sequence:
 
 - **Head Chef** (Groq / llama-3.3-70b) invents a dish from your ingredients
 - **Sous Chef** (OpenAI / gpt-4o-mini) refines it with practical corrections
@@ -22,6 +23,21 @@ Browser (React)  ──POST /api/brigade──►  Azure Function
 
 Sequential by design: each station sees the previous station's work, so the
 panel behaves like a real kitchen brigade rather than three isolated calls.
+
+## Product behavior
+
+- Four distinct dishes are returned for every ingredient ticket.
+- Recipe titles are remembered in `sessionStorage`, so another round avoids
+  repeating dishes during that browser session.
+- Saved recipes and tasting-room reviews are stored on the current device.
+- Reviews can include a plate photo, rating, quote, and the full recipe needed
+  to recreate the dish.
+- Highly rated recipes appear in the cookbook watchlist.
+
+Shared community accounts, cloud photo storage, moderation, rights consent,
+and cookbook publishing require a persistent database and storage service.
+Amazon KDP publishing should remain an approval-gated release step; automated
+proof copies and direct fulfillment can later use a print API such as Lulu.
 
 ## Environment variables (set in Azure SWA → Configuration)
 
