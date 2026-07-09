@@ -17,6 +17,8 @@ const DEFAULT_PREFERENCES = {
 }
 
 const COOK_TIMEOUT_MS = 70000
+const TIP_URL = import.meta.env.VITE_BRIGADE_TIP_URL || ''
+const WALLET_LABELS = ['Apple Pay', 'Google Pay', 'Card', 'Tap-to-pay wallet']
 
 const readStorage = (storage, key, fallback = []) => {
   try {
@@ -38,6 +40,7 @@ export default function App() {
   const [reviews, setReviews] = useState(() => readStorage(localStorage, 'pass_plate_reviews'))
   const [cloudReviews, setCloudReviews] = useState([])
   const [preferences, setPreferences] = useState(() => readStorage(localStorage, 'pass_preferences', DEFAULT_PREFERENCES))
+  const [tipOpen, setTipOpen] = useState(false)
   const session = neonClient.auth.useSession()
   const user = session.data?.user
 
@@ -75,6 +78,11 @@ export default function App() {
     }
     loadCommunityReviews()
     return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('tip') === 'brigade') setTipOpen(true)
   }, [])
 
   async function cook() {
@@ -187,6 +195,7 @@ export default function App() {
         <div className="topline">
           <div className="eyebrow">Multi-Model Kitchen Brigade</div>
           <div className="account-controls">
+            <button className="tip-link" type="button" onClick={() => setTipOpen(true)}>Tip the brigade</button>
             <SignedOut>
               <span>Cook free. Save with an account.</span>
               <Link to="/auth/sign-in">Sign in</Link>
@@ -203,6 +212,13 @@ export default function App() {
           Put what you have on the ticket. The brigade creates four completely different dishes,
           remembers what it served this session, and lets the strongest plates rise toward the cookbook.
         </p>
+        <div className="hero-tip">
+          <button className="tip-card" type="button" onClick={() => setTipOpen(true)}>
+            <span>Wallet-ready tip jar</span>
+            <strong>Tip the brigade</strong>
+            <em>Apple Pay, Google Pay, card, and contactless wallet checkout.</em>
+          </button>
+        </div>
       </header>
 
       <div className="ticket">
@@ -257,6 +273,7 @@ export default function App() {
                 <button className="save-btn" onClick={() => toggleSave(selectedRecipe)}>
                   {savedIds.has(selectedRecipe.id) ? 'Saved ✓' : 'Save recipe'}
                 </button>
+                <button className="save-btn tip-action" type="button" onClick={() => setTipOpen(true)}>Tip brigade</button>
               </div>
               <KitchenRail recipe={selectedRecipe} />
               <ReviewForm recipe={selectedRecipe} onSubmit={addReview} />
@@ -270,6 +287,37 @@ export default function App() {
       <TastingRoom reviews={visibleReviews} saved={saved} />
 
       <footer>The Pass · Four plates per ticket · White Glove</footer>
+      <TipBrigade open={tipOpen} onClose={() => setTipOpen(false)} />
+    </div>
+  )
+}
+
+function TipBrigade({ open, onClose }) {
+  if (!open) return null
+  const amounts = ['$3', '$5', '$10', '$20']
+
+  return (
+    <div className="tip-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="tip-modal" role="dialog" aria-modal="true" aria-labelledby="tip-title" onMouseDown={(event) => event.stopPropagation()}>
+        <button className="tip-close" type="button" onClick={onClose} aria-label="Close tip jar">×</button>
+        <div className="section-kicker">Kitchen appreciation</div>
+        <h2 id="tip-title">Tip the brigade.</h2>
+        <p>
+          The Pass stays free to try. Tips help keep the line running, recipes improving,
+          and the kitchen experimenting with better plates.
+        </p>
+        <div className="wallet-strip" aria-label="Supported tip checkout options">
+          {WALLET_LABELS.map((label) => <span key={label}>{label}</span>)}
+        </div>
+        <div className="tip-amounts" aria-label="Suggested tip amounts">
+          {amounts.map((amount) => <span key={amount}>{amount}</span>)}
+        </div>
+        {TIP_URL ? (
+          <a className="btn tip-submit" href={TIP_URL} target="_blank" rel="noreferrer">Tip with wallet checkout ↗</a>
+        ) : (
+          <div className="tip-pending">Tip jar is warming up. Add VITE_BRIGADE_TIP_URL to a Stripe Checkout or Payment Link with Apple Pay, Google Pay, cards, and supported wallet methods enabled.</div>
+        )}
+      </section>
     </div>
   )
 }

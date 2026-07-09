@@ -30,6 +30,9 @@ panel behaves like a real kitchen brigade rather than three isolated calls.
 - Recipe titles and descriptions are remembered in `sessionStorage`, so
   another round avoids both exact repeats and close variations during that
   browser session.
+- The brigade tip jar opens from `?tip=brigade` and can route to a hosted
+  checkout link that supports Apple Pay, Google Pay, cards, and contactless
+  wallet options.
 - Saved recipes and tasting-room reviews are stored on the current device.
 - Reviews can include a plate photo, rating, quote, and the full recipe needed
   to recreate the dish.
@@ -66,6 +69,12 @@ Optional model overrides:
 - `GROQ_MODEL`
 - `OPENAI_MODEL`
 - `ANTHROPIC_MODEL`
+
+Optional tip checkout:
+
+- `VITE_BRIGADE_TIP_URL` — hosted Stripe Checkout or Payment Link URL with
+  Apple Pay, Google Pay, cards, and supported wallet methods enabled in the
+  payment processor dashboard.
 
 ## Local dev
 

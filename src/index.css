@@ -31,11 +31,12 @@ body {
 }
 .topline { display: flex; justify-content: space-between; gap: 20px; align-items: center; margin-bottom: 14px; }
 .account-controls { display: flex; align-items: center; gap: 10px; color: #766d5e; font-size: 11px; }
-.account-controls a {
+.account-controls a, .tip-link {
   padding: 7px 10px; border: 1px solid var(--line); border-radius: 3px; color: var(--bone);
   font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .08em; text-decoration: none; text-transform: uppercase;
 }
-.account-controls a:hover, .account-controls .join-link { border-color: var(--ember); }
+.tip-link { background: transparent; cursor: pointer; }
+.account-controls a:hover, .account-controls .join-link, .tip-link:hover { border-color: var(--ember); }
 .account-controls .join-link { background: var(--ember); color: var(--char); }
 
 .auth-page {
@@ -50,6 +51,19 @@ h1 {
 }
 h1 .fire { color: var(--ember); }
 .sub { margin-top: 16px; color: #b8ad99; max-width: 540px; font-size: 16px; line-height: 1.5; }
+.hero-tip { margin-top: 22px; }
+.tip-card {
+  width: min(100%, 420px); padding: 16px; border: 1px solid rgba(201, 162, 75, .45);
+  border-radius: 4px; background: linear-gradient(135deg, rgba(232, 84, 30, .12), rgba(31, 26, 20, .94));
+  color: var(--bone); text-align: left; cursor: pointer; display: grid; gap: 5px;
+}
+.tip-card span {
+  color: var(--brass); font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  letter-spacing: .18em; text-transform: uppercase;
+}
+.tip-card strong { font-family: 'Oswald', sans-serif; font-size: 25px; line-height: 1; text-transform: uppercase; }
+.tip-card em { color: #9f9583; font-size: 13px; font-style: normal; line-height: 1.4; }
+.tip-card:hover { border-color: var(--ember); }
 
 /* Ticket / input */
 .ticket {
@@ -193,6 +207,39 @@ h3 { font-size: 24px; }
   font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
 }
 .save-btn:hover { background: var(--brass); color: var(--char); }
+.tip-action { border-color: var(--ember); }
+.tip-action:hover { background: var(--ember); }
+
+.tip-backdrop {
+  position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 20px;
+  background: rgba(5, 4, 3, .78); backdrop-filter: blur(8px);
+}
+.tip-modal {
+  position: relative; width: min(100%, 520px); padding: 30px; border: 1px solid rgba(201, 162, 75, .45);
+  border-radius: 5px; background: radial-gradient(circle at top right, rgba(232, 84, 30, .18), transparent 34%), var(--char-2);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .45);
+}
+.tip-close {
+  position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border: 1px solid var(--line);
+  border-radius: 3px; background: var(--char); color: var(--bone); cursor: pointer; font-size: 22px; line-height: 1;
+}
+.tip-modal p { margin-top: 12px; color: #b8ad99; line-height: 1.6; }
+.wallet-strip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.wallet-strip span {
+  padding: 8px 10px; border: 1px solid rgba(201, 162, 75, .34); border-radius: 3px;
+  color: var(--bone); background: rgba(22, 19, 15, .55); font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+}
+.tip-amounts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin: 22px 0; }
+.tip-amounts span {
+  min-height: 48px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 3px;
+  color: var(--brass); font-family: 'JetBrains Mono', monospace; font-size: 13px;
+}
+.tip-submit { display: inline-block; text-decoration: none; }
+.tip-pending {
+  padding: 14px; border-left: 3px solid var(--ember); background: var(--char);
+  color: #a99e8c; font-size: 13px; line-height: 1.5;
+}
 
 .review-form {
   margin-top: 28px; padding: 24px; border: 1px dashed #544735; background: var(--char-2);
@@ -247,4 +294,5 @@ h3 { font-size: 24px; }
   .docket-head { gap: 8px; padding: 14px; }
   .station { width: 62px; }
   .plate-actions, .cookbook-watch { align-items: flex-start; flex-direction: column; }
+  .tip-amounts { grid-template-columns: repeat(2, 1fr); }
 }
