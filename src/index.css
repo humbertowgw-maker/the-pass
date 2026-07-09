@@ -53,17 +53,32 @@ h1 .fire { color: var(--ember); }
 .sub { margin-top: 16px; color: #b8ad99; max-width: 540px; font-size: 16px; line-height: 1.5; }
 .hero-tip { margin-top: 22px; }
 .tip-card {
-  width: min(100%, 420px); padding: 16px; border: 1px solid rgba(201, 162, 75, .45);
-  border-radius: 4px; background: linear-gradient(135deg, rgba(232, 84, 30, .12), rgba(31, 26, 20, .94));
+  position: relative; width: min(100%, 460px); padding: 18px 64px 18px 18px;
+  border: 1px solid rgba(232, 84, 30, .72); border-radius: 4px;
+  background: linear-gradient(135deg, rgba(232, 84, 30, .28), rgba(201, 162, 75, .08) 42%, rgba(31, 26, 20, .96));
   color: var(--bone); text-align: left; cursor: pointer; display: grid; gap: 5px;
+  box-shadow: 0 0 0 1px rgba(232, 84, 30, .15), 0 16px 44px rgba(0, 0, 0, .28);
+  overflow: hidden;
+}
+.tip-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(110deg, transparent 0 34%, rgba(242, 235, 221, .13) 48%, transparent 62%);
+  transform: translateX(-100%); transition: transform .5s ease; pointer-events: none;
+}
+.tip-card::after {
+  content: '→'; position: absolute; right: 16px; top: 50%; width: 34px; height: 34px;
+  display: grid; place-items: center; border-radius: 50%; background: var(--ember); color: var(--char);
+  font-family: 'JetBrains Mono', monospace; font-weight: 700; transform: translateY(-50%);
 }
 .tip-card span {
   color: var(--brass); font-family: 'JetBrains Mono', monospace; font-size: 10px;
   letter-spacing: .18em; text-transform: uppercase;
 }
 .tip-card strong { font-family: 'Oswald', sans-serif; font-size: 25px; line-height: 1; text-transform: uppercase; }
+.tip-card strong b { color: var(--ember); font-family: 'JetBrains Mono', monospace; font-size: 22px; }
 .tip-card em { color: #9f9583; font-size: 13px; font-style: normal; line-height: 1.4; }
-.tip-card:hover { border-color: var(--ember); }
+.tip-card:hover { border-color: #ff6326; transform: translateY(-1px); }
+.tip-card:hover::before { transform: translateX(100%); }
 
 /* Ticket / input */
 .ticket {
@@ -207,7 +222,7 @@ h3 { font-size: 24px; }
   font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
 }
 .save-btn:hover { background: var(--brass); color: var(--char); }
-.tip-action { border-color: var(--ember); }
+.tip-action { border-color: var(--ember); color: var(--char); background: var(--ember); }
 .tip-action:hover { background: var(--ember); }
 
 .tip-backdrop {
@@ -235,7 +250,14 @@ h3 { font-size: 24px; }
   min-height: 48px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 3px;
   color: var(--brass); font-family: 'JetBrains Mono', monospace; font-size: 13px;
 }
-.tip-submit { display: inline-block; text-decoration: none; }
+.tip-submit {
+  display: inline-flex; align-items: center; gap: 10px; text-decoration: none;
+  box-shadow: 0 10px 34px rgba(232, 84, 30, .28);
+}
+.tip-submit span {
+  width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%;
+  background: rgba(22, 19, 15, .22); font-family: 'JetBrains Mono', monospace;
+}
 .tip-pending {
   padding: 14px; border-left: 3px solid var(--ember); background: var(--char);
   color: #a99e8c; font-size: 13px; line-height: 1.5;

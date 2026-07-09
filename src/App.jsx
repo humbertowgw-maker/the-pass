@@ -215,7 +215,7 @@ export default function App() {
         <div className="hero-tip">
           <button className="tip-card" type="button" onClick={() => setTipOpen(true)}>
             <span>Wallet-ready tip jar</span>
-            <strong>Tip the brigade</strong>
+            <strong>Tip the brigade <b aria-hidden="true">→</b></strong>
             <em>Apple Pay, Google Pay, card, and contactless wallet checkout.</em>
           </button>
         </div>
@@ -273,7 +273,7 @@ export default function App() {
                 <button className="save-btn" onClick={() => toggleSave(selectedRecipe)}>
                   {savedIds.has(selectedRecipe.id) ? 'Saved ✓' : 'Save recipe'}
                 </button>
-                <button className="save-btn tip-action" type="button" onClick={() => setTipOpen(true)}>Tip brigade</button>
+                <button className="save-btn tip-action" type="button" onClick={() => setTipOpen(true)}>Tip brigade →</button>
               </div>
               <KitchenRail recipe={selectedRecipe} />
               <ReviewForm recipe={selectedRecipe} onSubmit={addReview} />
@@ -313,7 +313,7 @@ function TipBrigade({ open, onClose }) {
           {amounts.map((amount) => <span key={amount}>{amount}</span>)}
         </div>
         {TIP_URL ? (
-          <a className="btn tip-submit" href={TIP_URL} target="_blank" rel="noreferrer">Tip with wallet checkout ↗</a>
+          <a className="btn tip-submit" href={TIP_URL} target="_blank" rel="noreferrer">Tip with wallet checkout <span aria-hidden="true">→</span></a>
         ) : (
           <div className="tip-pending">Tip jar is warming up. Add VITE_BRIGADE_TIP_URL to a Stripe Checkout or Payment Link with Apple Pay, Google Pay, cards, and supported wallet methods enabled.</div>
         )}
