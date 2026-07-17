@@ -12,10 +12,24 @@ const MODELS = {
 }
 
 const PROVIDER_TIMEOUT_MS = Number(process.env.PROVIDER_TIMEOUT_MS || 20000)
+const RATE_WINDOW_MS = 60 * 1000
+const RATE_MAX = 6
+const rateBuckets = new Map()
 
 module.exports = async function (context, req) {
   if (req.method && req.method.toUpperCase() !== 'POST') {
     context.res = { status: 405, body: 'The kitchen only accepts POST tickets.' }
+    return
+  }
+
+  const clientIp = String(req.headers?.['x-forwarded-for'] || req.headers?.['x-client-ip'] || 'unknown')
+    .split(',')[0].trim().slice(0, 64)
+  if (!consumeRateLimit(clientIp)) {
+    context.res = {
+      status: 429,
+      headers: { 'Content-Type': 'application/json', 'Retry-After': '60' },
+      body: { error: 'The kitchen is busy. Please wait a minute before sending another ticket.' },
+    }
     return
   }
 
@@ -65,9 +79,20 @@ module.exports = async function (context, req) {
       body: { recipes },
     }
   } catch (err) {
-    context.log.error('Brigade failure:', err)
-    context.res = { status: 502, body: `A station went down: ${err.message}` }
+    context.log.error('Brigade request failed', { name: err?.name })
+    context.res = { status: 502, body: 'A station went down. Please try again shortly.' }
   }
+}
+
+function consumeRateLimit(identity) {
+  const now = Date.now()
+  const current = rateBuckets.get(identity)
+  if (!current || current.resetAt <= now) {
+    rateBuckets.set(identity, { count: 1, resetAt: now + RATE_WINDOW_MS })
+    return true
+  }
+  current.count += 1
+  return current.count <= RATE_MAX
 }
 
 function cleanPreference(value, fallback) {

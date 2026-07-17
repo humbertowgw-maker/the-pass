@@ -40,7 +40,7 @@ export default function App() {
   const [reviews, setReviews] = useState(() => readStorage(localStorage, 'pass_plate_reviews'))
   const [cloudReviews, setCloudReviews] = useState([])
   const [preferences, setPreferences] = useState(() => readStorage(localStorage, 'pass_preferences', DEFAULT_PREFERENCES))
-  const [tipOpen, setTipOpen] = useState(false)
+  const [tipOpen, setTipOpen] = useState(() => new URLSearchParams(window.location.search).get('tip') === 'brigade')
   const session = neonClient.auth.useSession()
   const user = session.data?.user
 
@@ -78,11 +78,6 @@ export default function App() {
     }
     loadCommunityReviews()
     return () => { active = false }
-  }, [])
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('tip') === 'brigade') setTipOpen(true)
   }, [])
 
   async function cook() {

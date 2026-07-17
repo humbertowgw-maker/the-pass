@@ -3,5 +3,12 @@
     "rewrite": "/index.html",
     "exclude": ["/api/*", "*.{css,js,png,svg,ico,woff,woff2}"]
   },
-  "platform": { "apiRuntime": "node:18" }
+  "globalHeaders": {
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.neon.tech; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY"
+  },
+  "platform": { "apiRuntime": "node:20" }
 }
