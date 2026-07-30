@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { SignedIn, SignedOut, UserButton } from '@neondatabase/neon-js/auth/react'
 import { neonClient } from './auth.js'
+import { recordGenerationEvent } from './analytics.js'
 
 const STATIONS = [
   { key: 'head', station: 'Station 1', name: 'Head Chef', provider: 'GROQ · LLAMA-3.3-70B' },
@@ -105,6 +106,7 @@ export default function App() {
       if (!Array.isArray(data.recipes) || data.recipes.length === 0) {
         throw new Error('The kitchen returned an empty ticket. Try again.')
       }
+      void recordGenerationEvent(data.recipes.length)
       setActive('sous')
       await wait(450)
       setActive('critic')

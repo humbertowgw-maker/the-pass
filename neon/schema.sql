@@ -141,3 +141,85 @@ grant select on public.cookbook_candidates to authenticated;
 grant select on public.recipes to anonymous;
 grant select on public.reviews to anonymous;
 grant select on public.cookbook_candidates to anonymous;
+
+-- Privacy-safe product analytics. This table intentionally stores no recipe
+-- content, ingredients, email addresses, names, or account IDs.
+create table if not exists public.generation_events (
+  id uuid primary key default gen_random_uuid(),
+  cook_hash text not null check (cook_hash ~ '^[a-f0-9]{64}$'),
+  recipe_count integer not null default 4 check (recipe_count between 1 and 12),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists generation_events_created_at_idx
+  on public.generation_events (created_at desc);
+create index if not exists generation_events_cook_created_idx
+  on public.generation_events (cook_hash, created_at);
+
+alter table public.generation_events enable row level security;
+
+drop policy if exists generation_events_insert_aggregate_only on public.generation_events;
+create policy generation_events_insert_aggregate_only
+on public.generation_events
+for insert to anonymous, authenticated
+with check (
+  cook_hash ~ '^[a-f0-9]{64}$'
+  and recipe_count between 1 and 12
+);
+
+revoke all on public.generation_events from anonymous, authenticated;
+grant insert on public.generation_events to anonymous, authenticated;
+
+create or replace function public.portfolio_generation_metrics()
+returns table (
+  recipes_generated_by_returning_cooks_weekly bigint,
+  recipe_rounds_weekly bigint,
+  recipes_generated_weekly bigint,
+  active_cooks_weekly bigint,
+  returning_cooks_weekly bigint,
+  total_rounds bigint,
+  latest_generation_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  with marked as (
+    select
+      event.id,
+      event.cook_hash,
+      event.recipe_count,
+      event.created_at,
+      exists (
+        select 1
+        from public.generation_events prior
+        where prior.cook_hash = event.cook_hash
+          and prior.created_at < event.created_at
+      ) as is_returning
+    from public.generation_events event
+  )
+  select
+    coalesce(sum(recipe_count) filter (
+      where created_at >= now() - interval '7 days' and is_returning
+    ), 0)::bigint,
+    count(*) filter (
+      where created_at >= now() - interval '7 days'
+    )::bigint,
+    coalesce(sum(recipe_count) filter (
+      where created_at >= now() - interval '7 days'
+    ), 0)::bigint,
+    count(distinct cook_hash) filter (
+      where created_at >= now() - interval '7 days'
+    )::bigint,
+    count(distinct cook_hash) filter (
+      where created_at >= now() - interval '7 days' and is_returning
+    )::bigint,
+    count(*)::bigint,
+    max(created_at)
+  from marked;
+$$;
+
+revoke all on function public.portfolio_generation_metrics() from public;
+grant execute on function public.portfolio_generation_metrics()
+  to anonymous, authenticated;
