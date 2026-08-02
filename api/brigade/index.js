@@ -33,18 +33,19 @@ module.exports = async function (context, req) {
     return
   }
 
-  const ingredients = (req.body && req.body.ingredients || '').toString().slice(0, 1000).trim()
+  const body = parseBody(req)
+  const ingredients = (body.ingredients || '').toString().slice(0, 1000).trim()
   const preferences = {
-    cuisine: cleanPreference(req.body?.preferences?.cuisine, 'surprise me'),
-    mood: cleanPreference(req.body?.preferences?.mood, 'anything'),
-    meal: cleanPreference(req.body?.preferences?.meal, 'any meal'),
-    servings: cleanPreference(req.body?.preferences?.servings, 'auto'),
+    cuisine: cleanPreference(body.preferences?.cuisine, 'surprise me'),
+    mood: cleanPreference(body.preferences?.mood, 'anything'),
+    meal: cleanPreference(body.preferences?.meal, 'any meal'),
+    servings: cleanPreference(body.preferences?.servings, 'auto'),
   }
-  const previousTitles = Array.isArray(req.body?.previousTitles)
-    ? req.body.previousTitles.map((title) => String(title).slice(0, 120)).slice(-30)
+  const previousTitles = Array.isArray(body.previousTitles)
+    ? body.previousTitles.map((title) => String(title).slice(0, 120)).slice(-30)
     : []
-  const previousRecipes = Array.isArray(req.body?.previousRecipes)
-    ? req.body.previousRecipes.slice(-30).map((recipe) => ({
+  const previousRecipes = Array.isArray(body.previousRecipes)
+    ? body.previousRecipes.slice(-30).map((recipe) => ({
         title: String(recipe?.title || '').slice(0, 120),
         description: String(recipe?.description || '').slice(0, 240),
       }))
@@ -82,6 +83,22 @@ module.exports = async function (context, req) {
     context.log.error('Brigade request failed', { name: err?.name })
     context.res = { status: 502, body: 'A station went down. Please try again shortly.' }
   }
+}
+
+// Azure can deliver the request body either as a parsed object or as a raw
+// JSON string depending on the runtime and content-type. Normalize both.
+function parseBody(req) {
+  const raw = req.body !== undefined ? req.body : req.rawBody
+  if (!raw) return {}
+  if (typeof raw === 'string') {
+    if (!raw.trim()) return {}
+    try {
+      return JSON.parse(raw)
+    } catch {
+      return {}
+    }
+  }
+  return raw
 }
 
 function consumeRateLimit(identity) {
