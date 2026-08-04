@@ -21,6 +21,19 @@ const COOK_TIMEOUT_MS = 70000
 const TIP_URL = import.meta.env.VITE_BRIGADE_TIP_URL || ''
 const WALLET_LABELS = ['Apple Pay', 'Google Pay', 'Card', 'Tap-to-pay wallet']
 
+const buildTipUrl = () => {
+  if (!TIP_URL) return ''
+  const inbound = new URLSearchParams(window.location.search)
+  if (inbound.get('source') !== 'poopsense') return TIP_URL
+
+  const checkout = new URL(TIP_URL)
+  checkout.searchParams.set('client_reference_id', 'poopsense_tip')
+  checkout.searchParams.set('utm_source', 'poopsense')
+  checkout.searchParams.set('utm_medium', 'referral')
+  checkout.searchParams.set('utm_campaign', 'tip_jar')
+  return checkout.toString()
+}
+
 const readStorage = (storage, key, fallback = []) => {
   try {
     return JSON.parse(storage.getItem(key)) || fallback
@@ -42,6 +55,7 @@ export default function App() {
   const [cloudReviews, setCloudReviews] = useState([])
   const [preferences, setPreferences] = useState(() => readStorage(localStorage, 'pass_preferences', DEFAULT_PREFERENCES))
   const [tipOpen, setTipOpen] = useState(() => new URLSearchParams(window.location.search).get('tip') === 'brigade')
+  const [tipUrl] = useState(buildTipUrl)
   const session = neonClient.auth.useSession()
   const user = session.data?.user
 
@@ -284,12 +298,12 @@ export default function App() {
       <TastingRoom reviews={visibleReviews} saved={saved} />
 
       <footer>The Pass · Four plates per ticket · White Glove</footer>
-      <TipBrigade open={tipOpen} onClose={() => setTipOpen(false)} />
+      <TipBrigade open={tipOpen} onClose={() => setTipOpen(false)} tipUrl={tipUrl} />
     </div>
   )
 }
 
-function TipBrigade({ open, onClose }) {
+function TipBrigade({ open, onClose, tipUrl }) {
   if (!open) return null
   const amounts = ['$3', '$5', '$10', '$20']
 
@@ -309,8 +323,8 @@ function TipBrigade({ open, onClose }) {
         <div className="tip-amounts" aria-label="Suggested tip amounts">
           {amounts.map((amount) => <span key={amount}>{amount}</span>)}
         </div>
-        {TIP_URL ? (
-          <a className="btn tip-submit" href={TIP_URL} target="_blank" rel="noreferrer">Tip with wallet checkout <span aria-hidden="true">→</span></a>
+        {tipUrl ? (
+          <a className="btn tip-submit" href={tipUrl} target="_blank" rel="noreferrer">Tip with wallet checkout <span aria-hidden="true">→</span></a>
         ) : (
           <div className="tip-pending">Tip jar is warming up. Add VITE_BRIGADE_TIP_URL to a Stripe Checkout or Payment Link with Apple Pay, Google Pay, cards, and supported wallet methods enabled.</div>
         )}
