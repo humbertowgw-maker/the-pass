@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci --ignore-scripts
+      - run: npm install --ignore-scripts
       - run: npm audit --json > audit-report.json || true
       - name: Save audit report
         run: |
