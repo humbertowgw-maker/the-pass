@@ -13,8 +13,7 @@
   "dependencies": {
     "@neondatabase/neon-js": "^0.6.2-beta",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "react-router-dom": "8.3.0"
+    "react-dom": "^19.2.6"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
