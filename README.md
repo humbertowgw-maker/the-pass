@@ -84,3 +84,59 @@ npm run dev          # frontend on :5173, proxies /api to :7071
 # in another terminal, run the function host:
 cd api && func start # requires Azure Functions Core Tools
 ```
+
+## Engineering notes
+
+Notes for anyone reading the code rather than the pitch — real decisions and
+fixes visible in the commit history, not a changelog.
+
+- **Sequential orchestration became parallel once it hit a platform
+  timeout.** The brigade originally ran Head Chef → Sous Chef → Critic
+  strictly in series. Three chained LLM calls started running into Azure
+  Functions' request timeout, so `fb18c97` restructured it: Head Chef still
+  runs first (Sous Chef and Critic both need its dishes), but Sous Chef and
+  Critic now run concurrently via `Promise.all`, and the per-provider
+  timeout dropped from 45s to 20s to fit the budget. Same three-model
+  pipeline, different shape once the actual latency was measured.
+
+- **Model output is treated as untrusted text, not JSON.** All three
+  providers are asked for JSON and none of them reliably deliver it.
+  `extractJson()` strips markdown fences, then falls back to
+  `repairModelJson()` — a hand-rolled, character-by-character bracket and
+  quote balancer that closes unterminated strings/arrays/objects and drops
+  trailing commas. This started as a dependency on the `jsonrepair` npm
+  package (`b230d27`) and was replaced three minutes later with ~40 lines of
+  vendored logic (`81aeec5`, "Keep brigade JSON repair self contained") —
+  a deliberate call to not carry a third-party parser inside a server-side
+  function that's already handling unpredictable upstream text.
+
+- **A real production bug, fixed days before this repo was cleaned up for
+  review.** Azure Functions delivers `req.body` inconsistently — sometimes
+  a parsed object, sometimes a raw JSON string, depending on runtime and
+  content-type. `71b2ec9` ("fix: parse Azure request body and restore
+  deploy workflow") added a `parseBody()` normalizer for both shapes after
+  requests were failing against the deployed function.
+
+- **A self-modifying CI loop to clear a dependency CVE, cleaned up after
+  itself.** `react-router-dom` needed patching; a temporary workflow
+  (`repair-dependencies.yml`) was added purely to run `npm audit`, apply
+  lockfile fixes, and push the result back to `main` — iterated several
+  times over about fifteen minutes while the pinned version was corrected —
+  then deleted once the lockfile audited clean (`4fe546f`, "Remove
+  temporary dependency repair workflow"). What's left running on every push
+  is `security.yml`: `npm audit --audit-level=high`, `eslint`, `vite build`,
+  and a syntax check on the Azure Function.
+
+- **An unmerged branch worth naming honestly.** A separate branch,
+  `agent/app-experience`, takes a different approach to the same
+  vulnerability: it removes `react-router-dom` entirely in favor of
+  hand-rolled native routing (`53f3fd4` onward) instead of patching the
+  version. That branch never merged into `main` — production still ships
+  with `react-router-dom`. It's mentioned here because it's the same
+  problem solved two ways, not because it's deployed.
+
+- **What isn't covered.** `playwright` is a devDependency but there are no
+  test files in the repo. CI enforces lint, build, and dependency audit on
+  every push, but nothing exercises the brigade pipeline itself (four
+  distinct dishes, JSON shape, rate limiting) automatically — that's
+  currently verified by hand.
