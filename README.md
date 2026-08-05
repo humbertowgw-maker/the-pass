@@ -135,8 +135,18 @@ fixes visible in the commit history, not a changelog.
   with `react-router-dom`. It's mentioned here because it's the same
   problem solved two ways, not because it's deployed.
 
-- **What isn't covered.** `playwright` is a devDependency but there are no
-  test files in the repo. CI enforces lint, build, and dependency audit on
-  every push, but nothing exercises the brigade pipeline itself (four
-  distinct dishes, JSON shape, rate limiting) automatically — that's
-  currently verified by hand.
+- **Test coverage for the brigade function.** `api/brigade/index.test.js`
+  uses Node's built-in `node:test` runner, not `playwright` — this is
+  server-side orchestration and string parsing with `fetch` mocked out, not
+  a browser flow, so a browser E2E tool was the wrong fit despite already
+  being installed. Coverage includes: the hand-rolled JSON-repair parser
+  (`b230d27`/`81aeec5`) against realistic truncated/malformed model output,
+  not just trivially-broken JSON; a regression test for the Azure
+  `req.body` string-vs-object inconsistency (`71b2ec9`) — plus a related gap
+  it caught, a bare non-object JSON body (`null`, a number, an array) that
+  crashed the handler outside its try/catch, now normalized and covered;
+  and the Groq-then-parallel-OpenAI/Anthropic orchestration itself,
+  including a timing assertion that the two parallel calls actually
+  overlap. `npm test` runs it; CI (`security.yml`) runs it on every push.
+  `playwright` remains installed but unused — real end-to-end browser
+  coverage of the recipe flow is still done by hand.

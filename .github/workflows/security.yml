@@ -21,5 +21,6 @@ jobs:
       - run: npm ci
       - run: npm audit --audit-level=high
       - run: npm run lint
+      - run: npm test
       - run: npm run build
       - run: node --check api/brigade/index.js

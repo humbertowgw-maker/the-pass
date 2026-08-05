@@ -87,18 +87,26 @@ module.exports = async function (context, req) {
 
 // Azure can deliver the request body either as a parsed object or as a raw
 // JSON string depending on the runtime and content-type. Normalize both.
+// A request body can also be syntactically valid JSON that isn't an object
+// at all (`null`, `42`, `"hi"`, `[1,2]`) — guard against that too, since
+// downstream code reads properties off the result unconditionally.
 function parseBody(req) {
   const raw = req.body !== undefined ? req.body : req.rawBody
   if (!raw) return {}
   if (typeof raw === 'string') {
     if (!raw.trim()) return {}
     try {
-      return JSON.parse(raw)
+      const parsed = JSON.parse(raw)
+      return isPlainObject(parsed) ? parsed : {}
     } catch {
       return {}
     }
   }
-  return raw
+  return isPlainObject(raw) ? raw : {}
+}
+
+function isPlainObject(value) {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function consumeRateLimit(identity) {
@@ -315,3 +323,10 @@ async function theCritic(ingredients, dishes, preferences) {
   ), 'The Critic')
   return Array.isArray(result.reviews) ? result.reviews.slice(0, 4) : []
 }
+
+// Exposed for unit tests only. The Azure Functions runtime only ever calls
+// the default export (module.exports) as a function, so attaching extra
+// named properties here is inert in production but lets tests exercise the
+// hand-rolled JSON repair and body-parsing helpers directly, without needing
+// to fake all three provider calls for every edge case.
+module.exports.__testables = { parseBody, extractJson, repairModelJson, consumeRateLimit }
