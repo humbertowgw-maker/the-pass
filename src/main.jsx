@@ -11,13 +11,14 @@ import { authClient } from './auth.js'
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <NeonAuthUIProvider authClient={authClient} redirectTo="/">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<App />} />
-          <Route path="/auth/:pathname" element={<AuthPage />} />
-          <Route path="/account/:pathname" element={<AccountPage />} />
-        </Routes>
-      </BrowserRouter>
+      <PathRouter />
     </NeonAuthUIProvider>
   </StrictMode>,
 )
+
+function PathRouter() {
+  const parts = window.location.pathname.split('/').filter(Boolean)
+  if (parts[0] === 'auth') return <AuthPage pathname={parts[1]} />
+  if (parts[0] === 'account') return <AccountPage pathname={parts[1]} />
+  return <App />
+}
