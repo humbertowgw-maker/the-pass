@@ -232,7 +232,13 @@ export default function App() {
         </div>
       </header>
 
-      <div className="ticket">
+      <section className="quick-start" aria-label="How it works">
+        <span><b>1</b> Add what you have</span>
+        <span><b>2</b> Pick your preferences</span>
+        <span><b>3</b> Get four chef-reviewed dishes</span>
+      </section>
+
+      <div className="ticket" id="cook">
         <div className="ticket-label">
           <span>Order Ticket — On Hand</span>
           <span>{sessionRecipes.length} ideas remembered</span>
@@ -256,7 +262,7 @@ export default function App() {
 
       {!!recipes.length && (
         <>
-          <section className="section-block">
+          <section className="section-block" id="recipes">
             <div className="section-kicker">Tonight&apos;s four</div>
             <div className="choice-grid">
               {recipes.map((recipe, index) => (
@@ -509,7 +515,7 @@ function TastingRoom({ reviews, saved }) {
     .slice(0, 6)
 
   return (
-    <section className="tasting-room">
+    <section className="tasting-room" id="community">
       <div className="section-kicker">Community tasting room</div>
       <h2>The plates people would make again.</h2>
       {!reviews.length ? (
