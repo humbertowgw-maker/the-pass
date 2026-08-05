@@ -1,0 +1,17 @@
+{
+  "name": "The Pass — AI Kitchen Brigade",
+  "short_name": "The Pass",
+  "description": "Turn what you have into four chef-reviewed recipes.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#16130F",
+  "theme_color": "#16130F",
+  "icons": [
+    {
+      "src": "/pass-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
