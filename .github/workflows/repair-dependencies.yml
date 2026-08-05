@@ -18,7 +18,6 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm install --package-lock-only --ignore-scripts
-      - run: npm audit --audit-level=high
       - name: Commit repaired lockfile
         run: |
           git config user.name "github-actions[bot]"
@@ -26,3 +25,4 @@ jobs:
           git add package-lock.json
           git diff --cached --quiet || git commit -m "Update audited dependency lock"
           git push
+      - run: npm audit --audit-level=high
