@@ -42,6 +42,10 @@ const readStorage = (storage, key, fallback = []) => {
   }
 }
 
+function Link({ to, children, ...props }) {
+  return <a href={to} {...props}>{children}</a>
+}
+
 export default function App() {
   const [ingredients, setIngredients] = useState('')
   const [running, setRunning] = useState(false)
