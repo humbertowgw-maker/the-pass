@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { SignedIn, SignedOut, UserButton } from '@neondatabase/neon-js/auth/react'
 import { neonClient } from './auth.js'
 import { recordGenerationEvent } from './analytics.js'

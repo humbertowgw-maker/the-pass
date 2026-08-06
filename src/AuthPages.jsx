@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { useParams } from 'react-router'
 import { AccountView, AuthView } from '@neondatabase/neon-js/auth/react'
 
 export function AuthPage() {
