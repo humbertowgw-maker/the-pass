@@ -1,10 +1,13 @@
 # The Pass — AI Kitchen Brigade
 
+> **Project status:** First public version. This is an early-stage recipe assistant and should be treated as a preview.
+
 Tell the kitchen what's in your fridge. Every ticket now produces four
-deliberately different recipes, and three AI models work the line in sequence:
+deliberately different recipes, with one model proposing each dish and two
+models reviewing the proposal in parallel:
 
 - **Head Chef** (Groq / llama-3.3-70b) invents a dish from your ingredients
-- **Sous Chef** (OpenAI / gpt-4o-mini) refines it with practical corrections
+- **Sous Chef** (OpenAI / gpt-4o-mini) reviews it with practical corrections
 - **Claude at the Pass** (Anthropic / Sonnet 4.6) audits ingredient fidelity,
   cookability, food safety, and decides whether the dish is ready to serve
 
