@@ -202,6 +202,30 @@ function repairModelJson(json) {
   return repaired.join('')
 }
 
+// No API key needed — our own hardware (birdsStudio). Tried first for
+// every station; falls through to that station's original provider
+// unchanged on any failure/timeout.
+const OLLAMA_URL = process.env.OLLAMA_BRIGADE_URL || 'http://100.72.213.92:11435'
+const OLLAMA_MODEL = process.env.OLLAMA_BRIGADE_MODEL || 'qwen2.5:7b'
+
+async function ollama(system, user, temperature) {
+  if (process.env.OLLAMA_BRIGADE_ENABLED === 'false') throw new Error('local disabled')
+  const r = await fetchWithTimeout(`${OLLAMA_URL}/v1/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: OLLAMA_MODEL,
+      temperature,
+      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+    }),
+  }, 'Local station', 45000)
+  if (!r.ok) throw new Error(`local model HTTP ${r.status}`)
+  const d = await r.json()
+  const text = d.choices?.[0]?.message?.content
+  if (!text) throw new Error('local model returned empty response')
+  return text
+}
+
 async function groq(system, user) {
   requireKey(GROQ_KEY, 'GROQ_API_KEY', 'Head Chef')
   const r = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
@@ -261,9 +285,9 @@ function requireKey(value, setting, station) {
   if (!value) throw new Error(`${station} is not configured. Add ${setting} to the Azure app settings.`)
 }
 
-async function fetchWithTimeout(url, options, station) {
+async function fetchWithTimeout(url, options, station, timeoutMs = PROVIDER_TIMEOUT_MS) {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS)
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
   try {
     return await fetch(url, { ...options, signal: controller.signal })
   } catch (err) {
@@ -294,10 +318,14 @@ The prior-session list is a BANNED CONCEPT list, not merely banned titles. If it
 {"recipes": [{"title": "dish name", "description": "one vivid sentence", "cuisine": "best-fit cuisine", "mood": "comforting|light|quick|adventurous|indulgent|healthy", "servings": 2, "serving_note": "honest quantity note", "ingredients": ["qty + item", ...], "steps": ["clear step with timing", ...]}]}
 
 Quantity is a hard constraint. Never claim more servings than the listed food can realistically produce. If servings is "auto", infer a conservative whole-number yield from the quantities given. If the requested serving count is impossible, scale down to the honest yield and say so in serving_note. One ordinary box of pasta is generally 4 main-dish servings, not a feast. Honor cuisine, mood, and meal preferences when the ingredients make them plausible; otherwise choose the closest honest fit without inventing specialty ingredients.`
-  const result = extractJson(await groq(
-    sys,
-    `On hand: ${ingredients}\n\nPreferences: ${JSON.stringify(preferences)}\n\nBanned prior concepts:\n${previousRecipes.length ? JSON.stringify(previousRecipes) : 'none'}`,
-  ), 'Head Chef')
+  const headUser = `On hand: ${ingredients}\n\nPreferences: ${JSON.stringify(preferences)}\n\nBanned prior concepts:\n${previousRecipes.length ? JSON.stringify(previousRecipes) : 'none'}`
+  let headText
+  try {
+    headText = await ollama(sys, headUser, 0.8)
+  } catch {
+    headText = await groq(sys, headUser)
+  }
+  const result = extractJson(headText, 'Head Chef')
   if (!Array.isArray(result.recipes) || result.recipes.length < 4) {
     throw new Error('Head Chef did not return four complete dishes')
   }
@@ -307,10 +335,14 @@ Quantity is a hard constraint. Never claim more servings than the listed food ca
 async function sousChef(ingredients, dishes, preferences) {
   const sys = `You are the Sous Chef — precise, technical, and practical. Review all four proposed dishes. For each one, give 2-4 concise corrections covering technique, seasoning, timing, quantities, food safety, or a smart swap. Never introduce an ingredient that is not on hand except salt, pepper, oil, or water. Preserve the exact recipe order. Respond ONLY with JSON:
 {"reviews": [{"title": "matching dish title", "notes": ["correction", ...]}]}`
-  const result = extractJson(await openai(
-    sys,
-    `On hand: ${ingredients}\n\nRequested preferences: ${JSON.stringify(preferences)}\n\nThe four dishes:\n${JSON.stringify(dishes)}`,
-  ), 'Sous Chef')
+  const sousUser = `On hand: ${ingredients}\n\nRequested preferences: ${JSON.stringify(preferences)}\n\nThe four dishes:\n${JSON.stringify(dishes)}`
+  let sousText
+  try {
+    sousText = await ollama(sys, sousUser, 0.6)
+  } catch {
+    sousText = await openai(sys, sousUser)
+  }
+  const result = extractJson(sousText, 'Sous Chef')
   return Array.isArray(result.reviews) ? result.reviews.slice(0, 4) : []
 }
 
