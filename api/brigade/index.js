@@ -205,7 +205,7 @@ function repairModelJson(json) {
 // No API key needed — our own hardware (birdsStudio). Tried first for
 // every station; falls through to that station's original provider
 // unchanged on any failure/timeout.
-const OLLAMA_URL = process.env.OLLAMA_BRIGADE_URL || 'http://100.72.213.92:11435'
+const OLLAMA_URL = process.env.OLLAMA_BRIGADE_URL || 'http://birdsstudio-1:11435'
 const OLLAMA_MODEL = process.env.OLLAMA_BRIGADE_MODEL || 'qwen2.5:7b'
 
 async function ollama(system, user, temperature) {
