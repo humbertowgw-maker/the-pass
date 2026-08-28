@@ -202,17 +202,20 @@ function repairModelJson(json) {
   return repaired.join('')
 }
 
-// No API key needed — our own hardware (birdsStudio). Tried first for
-// every station; falls through to that station's original provider
-// unchanged on any failure/timeout.
-const OLLAMA_URL = process.env.OLLAMA_BRIGADE_URL || 'http://birdsstudio-1:11435'
+// Our own hardware (birdsStudio), reached through an authenticated gateway
+// -- Ollama itself has no auth, OLLAMA_GATEWAY_API_KEY is required. Tried
+// first for every station; falls through to that station's original
+// provider unchanged on any failure/timeout (missing key included).
+const OLLAMA_URL = process.env.OLLAMA_BRIGADE_URL || 'https://ollama.whitegwireless.com'
 const OLLAMA_MODEL = process.env.OLLAMA_BRIGADE_MODEL || 'qwen2.5:7b'
+const OLLAMA_GATEWAY_API_KEY = process.env.OLLAMA_GATEWAY_API_KEY
 
 async function ollama(system, user, temperature) {
   if (process.env.OLLAMA_BRIGADE_ENABLED === 'false') throw new Error('local disabled')
+  if (!OLLAMA_GATEWAY_API_KEY) throw new Error('OLLAMA_GATEWAY_API_KEY not configured')
   const r = await fetchWithTimeout(`${OLLAMA_URL}/v1/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OLLAMA_GATEWAY_API_KEY}` },
     body: JSON.stringify({
       model: OLLAMA_MODEL,
       temperature,
