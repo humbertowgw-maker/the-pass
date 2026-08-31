@@ -195,6 +195,16 @@ h2, h3 { font-family: 'Oswald', sans-serif; font-weight: 500; text-transform: up
 h2 { font-size: clamp(28px, 5vw, 44px); }
 h3 { font-size: 24px; }
 
+.brigade-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.brigade-card {
+  padding: 20px; border: 1px solid var(--line); border-radius: 4px;
+  background: var(--char-2); color: var(--bone); display: flex; flex-direction: column;
+}
+.brigade-provider {
+  margin-top: 4px; color: var(--brass); font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 0.06em;
+}
+
 .choice-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .choice-card {
   min-height: 230px; padding: 20px; border: 1px solid var(--line); border-radius: 4px;
@@ -302,6 +312,7 @@ h3 { font-size: 24px; }
 @media (max-width: 820px) {
   .choice-grid { grid-template-columns: repeat(2, 1fr); }
   .preference-grid { grid-template-columns: repeat(2, 1fr); }
+  .brigade-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 560px) {

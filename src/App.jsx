@@ -5,9 +5,9 @@ import { neonClient } from './auth.js'
 import { recordGenerationEvent } from './analytics.js'
 
 const STATIONS = [
-  { key: 'head', station: 'Station 1', name: 'Head Chef', provider: 'GROQ · LLAMA-3.3-70B' },
-  { key: 'sous', station: 'Station 2', name: 'Sous Chef', provider: 'OPENAI · GPT-4O-MINI' },
-  { key: 'critic', station: 'The Pass', name: 'Claude', provider: 'ANTHROPIC · SONNET 4.6' },
+  { key: 'head', station: 'Station 1', name: 'Head Chef', provider: 'GROQ · LLAMA-3.3-70B', desc: 'Invents a dish from exactly what you listed — no substitutions you didn’t offer.' },
+  { key: 'sous', station: 'Station 2', name: 'Sous Chef', provider: 'OPENAI · GPT-4O-MINI', desc: 'Reviews the Head Chef’s dish with practical corrections before it goes further.' },
+  { key: 'critic', station: 'The Pass', name: 'Claude', provider: 'ANTHROPIC · SONNET 4.6', desc: 'Audits ingredient fidelity, cookability, and food safety, and decides if it’s ready to serve.' },
 ]
 
 const DEFAULT_PREFERENCES = {
@@ -231,6 +231,26 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      <section className="section-block brigade-explainer">
+        <div className="section-kicker">How the brigade works</div>
+        <p className="sub" style={{ marginTop: 0, marginBottom: 24 }}>
+          Most recipe generators give you one model&apos;s first guess. Here, every
+          dish gets checked by two more before it reaches you — sequentially, so
+          each station sees the previous one&apos;s actual work instead of three
+          isolated guesses stitched together.
+        </p>
+        <div className="brigade-grid">
+          {STATIONS.map((station) => (
+            <div className="brigade-card" key={station.key}>
+              <span className="choice-number">{station.station}</span>
+              <span className="choice-title" style={{ fontSize: 18 }}>{station.name}</span>
+              <span className="brigade-provider">{station.provider}</span>
+              <p className="choice-desc">{station.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <div className="ticket">
         <div className="ticket-label">
