@@ -19,6 +19,12 @@ const DEFAULT_PREFERENCES = {
 
 const COOK_TIMEOUT_MS = 70000
 const TIP_URL = import.meta.env.VITE_BRIGADE_TIP_URL || ''
+// The brigade API runs on a standalone Azure Function App now, not this
+// site's own managed functions -- Static Web Apps' Free tier can't link a
+// custom backend under the same domain (Standard tier only), and paying
+// for that would defeat the point of running this on local open models.
+// Empty stays same-origin (local dev via the Vite/SWA CLI proxy).
+const API_BASE = import.meta.env.VITE_BRIGADE_API_BASE || ''
 const WALLET_LABELS = ['Apple Pay', 'Google Pay', 'Card', 'Tap-to-pay wallet']
 
 const buildTipUrl = () => {
@@ -106,7 +112,7 @@ export default function App() {
     const timeout = setTimeout(() => controller.abort(), COOK_TIMEOUT_MS)
 
     try {
-      const res = await fetch('/api/brigade', {
+      const res = await fetch(`${API_BASE}/api/brigade`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ingredients, previousRecipes: sessionRecipes, preferences }),

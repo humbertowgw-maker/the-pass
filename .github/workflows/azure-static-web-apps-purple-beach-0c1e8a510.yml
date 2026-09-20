@@ -28,6 +28,7 @@ jobs:
         uses: Azure/static-web-apps-deploy@v1
         env:
           VITE_BRIGADE_TIP_URL: ${{ secrets.VITE_BRIGADE_TIP_URL }}
+          VITE_BRIGADE_API_BASE: https://the-pass-api.azurewebsites.net
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PURPLE_BEACH_0C1E8A510 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
@@ -35,7 +36,12 @@ jobs:
           ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
           # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
           app_location: "/" # App source code path
-          api_location: "api" # Api source code path - optional
+          # api_location intentionally omitted: the brigade API deploys to a
+          # standalone Function App (the-pass-api) instead of this site's own
+          # managed functions -- see azure-functions-the-pass-api.yml. Managed
+          # functions on Static Web Apps have a hard ~45s execution ceiling
+          # that a local Ollama model can't reliably fit under; a real
+          # Function App has no such cap.
           output_location: "dist" # Built app content directory - optional
           ###### End of Repository/Build Configurations ######
 
