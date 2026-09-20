@@ -220,6 +220,15 @@ function repairModelJson(json) {
 // -- Ollama itself has no auth, OLLAMA_GATEWAY_API_KEY is required. Tried
 // first for every station; falls through to that station's original
 // provider unchanged on any failure/timeout (missing key included).
+//
+// ponytail: full pipeline (Head Chef, then Sous Chef + Critic in parallel,
+// each trying this same local 8B model) runs 29-44s end to end against
+// Azure Static Web Apps' managed-function ceiling (~45s observed). No
+// headroom for a slow local inference tick or fleet contention. If this
+// starts failing again, first check timing before assuming a key broke --
+// upgrade path is either a smaller-but-still-JSON-reliable model, or move
+// this API off SWA's managed functions onto a real Function App (no hard
+// ceiling) if the timing margin becomes a real problem.
 const OLLAMA_URL = process.env.OLLAMA_BRIGADE_URL || 'https://ollama.whitegwireless.com'
 const OLLAMA_MODEL = process.env.OLLAMA_BRIGADE_MODEL || 'qwen2.5:7b'
 const OLLAMA_GATEWAY_API_KEY = process.env.OLLAMA_GATEWAY_API_KEY
