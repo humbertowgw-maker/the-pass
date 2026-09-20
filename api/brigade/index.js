@@ -221,26 +221,32 @@ function repairModelJson(json) {
 // first for every station; falls through to that station's original
 // provider unchanged on any failure/timeout (missing key included).
 //
-// ponytail: full pipeline (Head Chef, then Sous Chef + Critic in parallel,
-// each trying this same local 8B model) runs 29-44s end to end against
-// Azure Static Web Apps' managed-function ceiling (~45s observed). No
-// headroom for a slow local inference tick or fleet contention. If this
-// starts failing again, first check timing before assuming a key broke --
-// upgrade path is either a smaller-but-still-JSON-reliable model, or move
-// this API off SWA's managed functions onto a real Function App (no hard
-// ceiling) if the timing margin becomes a real problem.
+// ponytail: Head Chef alone (8B model, hardest task) ran 29-44s against
+// Azure Static Web Apps' managed-function ceiling (~45s observed) with no
+// headroom once Sous Chef/Critic ran afterward, and it failed live at that
+// margin. OLLAMA_BRIGADE_REVIEW_MODEL lets the two review stations use a
+// faster/smaller model than Head Chef's invention step, buying back time
+// on the parallel half of the pipeline. If this starts failing again,
+// check timing before assuming a key broke -- upgrade path beyond a
+// faster review model is moving this API off SWA's managed functions onto
+// a real Function App (no hard ceiling).
 const OLLAMA_URL = process.env.OLLAMA_BRIGADE_URL || 'https://ollama.whitegwireless.com'
 const OLLAMA_MODEL = process.env.OLLAMA_BRIGADE_MODEL || 'qwen2.5:7b'
+// Sous Chef/Critic only review and re-score dishes Head Chef already wrote
+// (short JSON, no need to invent anything) -- a smaller/faster model is
+// reliable enough for that lighter task even where it isn't for Head
+// Chef's, and cuts real time off the parallel half of the pipeline.
+const OLLAMA_REVIEW_MODEL = process.env.OLLAMA_BRIGADE_REVIEW_MODEL || OLLAMA_MODEL
 const OLLAMA_GATEWAY_API_KEY = process.env.OLLAMA_GATEWAY_API_KEY
 
-async function ollama(system, user, temperature) {
+async function ollama(system, user, temperature, model = OLLAMA_MODEL) {
   if (process.env.OLLAMA_BRIGADE_ENABLED === 'false') throw new Error('local disabled')
   if (!OLLAMA_GATEWAY_API_KEY) throw new Error('OLLAMA_GATEWAY_API_KEY not configured')
   const r = await fetchWithTimeout(`${OLLAMA_URL}/v1/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OLLAMA_GATEWAY_API_KEY}` },
     body: JSON.stringify({
-      model: OLLAMA_MODEL,
+      model,
       temperature,
       messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
     }),
@@ -364,7 +370,7 @@ async function sousChef(ingredients, dishes, preferences) {
   const sousUser = `On hand: ${ingredients}\n\nRequested preferences: ${JSON.stringify(preferences)}\n\nThe four dishes:\n${JSON.stringify(dishes)}`
   let sousText
   try {
-    sousText = await ollama(sys, sousUser, 0.6)
+    sousText = await ollama(sys, sousUser, 0.6, OLLAMA_REVIEW_MODEL)
   } catch {
     sousText = await openai(sys, sousUser)
   }
@@ -378,7 +384,7 @@ async function theCritic(ingredients, dishes, preferences) {
   const criticUser = `On hand: ${ingredients}\n\nRequested preferences: ${JSON.stringify(preferences)}\n\nThe four dishes:\n${JSON.stringify(dishes)}`
   let criticText
   try {
-    criticText = await ollama(sys, criticUser, 0.4)
+    criticText = await ollama(sys, criticUser, 0.4, OLLAMA_REVIEW_MODEL)
   } catch {
     criticText = await claude(sys, criticUser)
   }
