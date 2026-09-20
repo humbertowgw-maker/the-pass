@@ -19,11 +19,10 @@ const DEFAULT_PREFERENCES = {
 
 const COOK_TIMEOUT_MS = 70000
 const TIP_URL = import.meta.env.VITE_BRIGADE_TIP_URL || ''
-// The brigade API runs on a standalone Azure Function App now, not this
-// site's own managed functions -- Static Web Apps' Free tier can't link a
-// custom backend under the same domain (Standard tier only), and paying
-// for that would defeat the point of running this on local open models.
-// Empty stays same-origin (local dev via the Vite/SWA CLI proxy).
+// Meant to point at a standalone Function App (the-pass-api) to escape
+// managed functions' ~45s timeout ceiling, but that migration is on hold
+// (see azure-static-web-apps-*.yml) -- VITE_BRIGADE_API_BASE isn't set
+// right now, so this stays empty/same-origin, back on managed functions.
 const API_BASE = import.meta.env.VITE_BRIGADE_API_BASE || ''
 const WALLET_LABELS = ['Apple Pay', 'Google Pay', 'Card', 'Tap-to-pay wallet']
 
