@@ -134,17 +134,31 @@ function recipeId(title, index) {
   return `${Date.now()}-${index + 1}-${slug}`
 }
 
-function extractJson(text, station) {
+function extractJson(text, station, arrayKey) {
   if (!text) throw new Error(`${station} returned an empty response`)
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/)
   const candidate = fenced ? fenced[1] : text
   const start = candidate.indexOf('{')
   const end = candidate.lastIndexOf('}')
   if (start === -1 || end === -1 || end < start) {
+    // Some smaller/local models skip the {"key": [...]} wrapper and return
+    // a bare top-level array instead, despite the prompt asking for the
+    // former. Accept that shape too rather than failing the whole station.
+    if (arrayKey) {
+      const arrStart = candidate.indexOf('[')
+      const arrEnd = candidate.lastIndexOf(']')
+      if (arrStart !== -1 && arrEnd !== -1 && arrEnd > arrStart) {
+        const parsed = parseJsonWithRepair(candidate.slice(arrStart, arrEnd + 1), station)
+        return { [arrayKey]: parsed }
+      }
+    }
     throw new Error(`${station} returned no JSON`)
   }
 
-  const json = candidate.slice(start, end + 1)
+  return parseJsonWithRepair(candidate.slice(start, end + 1), station)
+}
+
+function parseJsonWithRepair(json, station) {
   try {
     return JSON.parse(json)
   } catch {
@@ -328,7 +342,7 @@ Quantity is a hard constraint. Never claim more servings than the listed food ca
   } catch {
     headText = await groq(sys, headUser)
   }
-  const result = extractJson(headText, 'Head Chef')
+  const result = extractJson(headText, 'Head Chef', 'recipes')
   if (!Array.isArray(result.recipes) || result.recipes.length < 4) {
     throw new Error('Head Chef did not return four complete dishes')
   }
@@ -345,7 +359,7 @@ async function sousChef(ingredients, dishes, preferences) {
   } catch {
     sousText = await openai(sys, sousUser)
   }
-  const result = extractJson(sousText, 'Sous Chef')
+  const result = extractJson(sousText, 'Sous Chef', 'reviews')
   return Array.isArray(result.reviews) ? result.reviews.slice(0, 4) : []
 }
 
@@ -359,7 +373,7 @@ async function theCritic(ingredients, dishes, preferences) {
   } catch {
     criticText = await claude(sys, criticUser)
   }
-  const result = extractJson(criticText, 'The Critic')
+  const result = extractJson(criticText, 'The Critic', 'reviews')
   return Array.isArray(result.reviews) ? result.reviews.slice(0, 4) : []
 }
 
