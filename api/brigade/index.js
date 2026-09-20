@@ -81,7 +81,7 @@ module.exports = async function (context, req) {
     }
   } catch (err) {
     context.log.error('Brigade request failed', { name: err?.name, message: err?.message })
-    context.res = { status: 502, body: `TEMP-DIAGNOSTIC: ${err?.name}: ${err?.message}` }
+    context.res = { status: 502, body: 'A station went down. Please try again shortly.' }
   }
 }
 
