@@ -352,10 +352,14 @@ async function sousChef(ingredients, dishes, preferences) {
 async function theCritic(ingredients, dishes, preferences) {
   const sys = `You are Claude acting as the executive chef at the pass. Independently audit all four proposed recipes for ingredient fidelity, cookability, honest serving yield, preference fit, clear timing, and food safety. Be honest but useful. Approve a dish only if a home cook can make it from what is on hand. Hold any dish that exaggerates its servings or invents unavailable ingredients. Give each dish its own rating and preserve the exact recipe order. Respond ONLY with JSON:
 {"reviews": [{"title": "matching dish title", "rating": 4, "approved": true, "verdict": "one or two vivid but practical sentences", "final_touches": ["last correction or serving note", ...]}]}`
-  const result = extractJson(await claude(
-    sys,
-    `On hand: ${ingredients}\n\nRequested preferences: ${JSON.stringify(preferences)}\n\nThe four dishes:\n${JSON.stringify(dishes)}`,
-  ), 'The Critic')
+  const criticUser = `On hand: ${ingredients}\n\nRequested preferences: ${JSON.stringify(preferences)}\n\nThe four dishes:\n${JSON.stringify(dishes)}`
+  let criticText
+  try {
+    criticText = await ollama(sys, criticUser, 0.4)
+  } catch {
+    criticText = await claude(sys, criticUser)
+  }
+  const result = extractJson(criticText, 'The Critic')
   return Array.isArray(result.reviews) ? result.reviews.slice(0, 4) : []
 }
 
