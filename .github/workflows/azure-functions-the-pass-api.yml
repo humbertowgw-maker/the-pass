@@ -7,6 +7,7 @@ on:
     paths:
       - "api/**"
       - ".github/workflows/azure-functions-the-pass-api.yml"
+  workflow_dispatch: {}
 
 jobs:
   build_and_deploy:
